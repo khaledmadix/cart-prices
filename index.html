@@ -1,7 +1,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cart Price Sheet</title>
-<!-- Standalone SHEIN price converter v3 : on-device OCR, icons, robust upload -->
+<!-- SHEIN price converter v4 : on-device OCR + on-screen diagnostics -->
 <style>
   :root{
     --ink:#1c1b1a; --ink-soft:#6b6763; --line:#e7e3dc; --paper:#faf8f4;
@@ -15,18 +15,16 @@
   body{background:var(--paper);color:var(--ink);font-family:var(--font-ui);font-size:16px;line-height:1.45;-webkit-text-size-adjust:100%}
   .wrap{max-width:560px;margin:0 auto;padding:14px 13px 104px}
   svg{display:block}
-  .ico{width:1.15em;height:1.15em;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round;flex:none}
-
   .top{position:sticky;top:0;z-index:20;background:var(--paper);padding:6px 0 10px;border-bottom:2px solid var(--ink);margin-bottom:14px}
   .brand{display:flex;align-items:center;gap:9px}
   .logo{width:30px;height:30px;border-radius:8px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;flex:none}
   .logo svg{width:18px;height:18px;stroke:#fff;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
   .top h1{margin:0;font-size:19px;font-weight:700;letter-spacing:-.02em}
-  .vpill{margin-left:auto;font-family:var(--font-num);font-size:11px;color:var(--ink-soft);background:var(--shade);border-radius:20px;padding:3px 9px}
-  .top p{margin:6px 0 0;font-size:13px;color:var(--ink-soft);display:flex;align-items:center;gap:6px}
+  .vpill{margin-left:auto;font-family:var(--font-num);font-size:11px;color:#fff;background:var(--accent);border-radius:20px;padding:3px 9px;font-weight:600}
+  .top p{margin:6px 0 0;font-size:13px;color:var(--ink-soft)}
 
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:13px}
-  .card h2{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-soft);margin:0 0 11px;font-weight:600;display:flex;align-items:center;gap:7px}
+  .card h2{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-soft);margin:0 0 11px;font-weight:600}
   .set{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
   .f{display:flex;flex-direction:column;gap:5px}
   .f label{font-size:12px;color:var(--ink-soft);font-weight:500}
@@ -40,16 +38,24 @@
   .drop small{color:var(--ink-soft);font-size:13px}
   .dropzone input[type=file]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
 
+  .fallback{margin-top:12px;padding:11px;border:1px solid var(--line);border-radius:10px;background:var(--paper)}
+  .fallback p{margin:0 0 7px;font-size:12.5px;color:var(--ink-soft)}
+  .fallback input[type=file]{font-size:14px;width:100%}
+
   .status{font-size:13px;color:var(--ink-soft);margin-top:11px;display:none;align-items:center;gap:8px}
   .status .spin{width:15px;height:15px;border:2px solid #ccc;border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;flex:none}
   @keyframes sp{to{transform:rotate(360deg)}}
   .err{background:#fff2ee;border:1px solid #ffd2c4;color:var(--accent-ink);padding:11px 12px;border-radius:10px;font-size:13.5px;margin-top:11px;display:none}
   .err b{display:block;margin-bottom:2px}
 
+  .logwrap{margin-top:12px}
+  .logwrap .lh{display:flex;justify-content:space-between;align-items:center;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);margin-bottom:5px}
+  .logwrap button{font:inherit;font-size:12px;border:1px solid var(--line);background:var(--shade);border-radius:8px;padding:4px 9px;cursor:pointer}
+  #log{margin:0;background:#101214;color:#8fe9c0;font-family:var(--font-num);font-size:11px;line-height:1.55;padding:10px 11px;border-radius:10px;max-height:190px;overflow:auto;white-space:pre-wrap;word-break:break-word}
+
   .page{margin-bottom:12px}
   .pagehead{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--ink-soft);margin:0 2px 6px}
-  .pagehead .rm{display:flex;align-items:center;gap:4px;border:none;background:transparent;color:var(--ink-soft);font-size:13px;cursor:pointer}
-  .pagehead .rm svg{width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+  .pagehead .rm{border:none;background:transparent;color:var(--ink-soft);font-size:13px;cursor:pointer;text-decoration:underline}
   .shotbox{position:relative;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
   .imgWrap{position:relative;line-height:0;touch-action:none}
   .imgWrap img{width:100%;display:block}
@@ -57,23 +63,19 @@
   .busy .spin{width:16px;height:16px;border:2px solid #ccc;border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite}
   .plabel{position:absolute;transform:translateY(-50%);font-family:var(--font-num);font-weight:500;color:#111;background:rgba(255,255,255,.82);padding:1px 7px;border-radius:7px;white-space:nowrap;line-height:1.15;box-shadow:0 1px 4px rgba(0,0,0,.12);cursor:grab;touch-action:none}
   .plabel.drag{box-shadow:0 5px 18px rgba(0,0,0,.22)}
-  .addp{display:inline-flex;align-items:center;gap:5px;margin:6px 2px 0;font-size:12.5px;color:var(--accent-ink);background:none;border:none;cursor:pointer}
-  .addp svg{width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+  .addp{display:inline-block;margin:6px 2px 0;font-size:12.5px;color:var(--accent-ink);background:none;border:none;cursor:pointer;text-decoration:underline}
 
   .totalcard{background:var(--ink);color:#fff;border-radius:14px;padding:16px 18px;display:flex;justify-content:space-between;align-items:center;margin-bottom:13px}
-  .totalcard .lbl{font-weight:600;font-size:16px;display:flex;align-items:center;gap:8px}
-  .totalcard .lbl svg{width:18px;height:18px;stroke:#fff;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+  .totalcard .lbl{font-weight:600;font-size:16px}
   .totalcard .amt{font-family:var(--font-num);font-weight:500;font-size:30px}
-  .tiny{font-size:12px;color:var(--ink-soft);text-align:center;margin-top:9px;display:none;align-items:center;justify-content:center;gap:6px}
-  .tiny svg{width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+  .tiny{font-size:12px;color:var(--ink-soft);text-align:center;margin-top:9px;display:none}
 
   .dock{position:fixed;left:0;right:0;bottom:0;z-index:30;background:rgba(250,248,244,.94);backdrop-filter:blur(6px);border-top:1px solid var(--line);padding:10px 13px calc(10px + env(safe-area-inset-bottom))}
   .dock .inner{max-width:560px;margin:0 auto;display:flex;gap:9px}
   .act{font:inherit;font-weight:600;border:none;border-radius:12px;min-height:52px;padding:0 16px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;flex:1}
   .act svg{width:18px;height:18px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
   .act.dark{background:var(--ink);color:#fff}
-  .act.ghost{background:var(--shade);color:var(--ink)}
-  .act.ghost{position:relative;overflow:hidden}
+  .act.ghost{background:var(--shade);color:var(--ink);position:relative;overflow:hidden}
   .act.ghost input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
   .act:disabled{opacity:.5}
   .wspin{width:15px;height:15px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite}
@@ -84,13 +86,13 @@
     <div class="brand">
       <span class="logo"><svg viewBox="0 0 24 24"><path d="M3 6h18M3 6l1.5 13a2 2 0 0 0 2 1.8h11a2 2 0 0 0 2-1.8L21 6"/><path d="M8 6V5a4 4 0 0 1 8 0v1"/></svg></span>
       <h1>Cart &rarr; Price sheet</h1>
-      <span class="vpill">v3</span>
+      <span class="vpill">v4</span>
     </div>
-    <p><svg class="ico" viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg> Add screenshots &middot; prices read on your phone &middot; one total</p>
+    <p>Add screenshots &middot; prices read on your phone &middot; one total</p>
   </div>
 
   <div class="card">
-    <h2><svg class="ico" viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Your pricing</h2>
+    <h2>Your pricing</h2>
     <div class="set">
       <div class="f"><label>Rate (x)</label><input id="rate" type="number" inputmode="decimal" step="0.1" value="16"></div>
       <div class="f"><label>Round to</label>
@@ -108,17 +110,27 @@
       </div>
       <input id="file" type="file" accept="image/*" multiple>
     </div>
+
+    <div class="fallback">
+      <p>Backup button (use this if tapping the box above does nothing):</p>
+      <input id="file3" type="file" accept="image/*" multiple>
+    </div>
+
     <div id="status" class="status"></div>
     <div id="err" class="err"></div>
+
+    <div class="logwrap">
+      <div class="lh"><span>Activity log</span><button id="clrLog" type="button">clear</button></div>
+      <pre id="log"></pre>
+    </div>
   </div>
 
   <div id="pages"></div>
 
   <div id="totalcard" class="totalcard" style="display:none">
-    <span class="lbl"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg> <span id="totLbl">Total</span></span>
-    <span class="amt" id="totAmt">0</span>
+    <span class="lbl" id="totLbl">Total</span><span class="amt" id="totAmt">0</span>
   </div>
-  <div id="tiny" class="tiny"><svg viewBox="0 0 24 24"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/></svg> Tap a price to fix it, drag to move it</div>
+  <div id="tiny" class="tiny">Tap a price to fix it, drag to move it</div>
 </div>
 
 <div class="dock"><div class="inner">
@@ -133,11 +145,17 @@
   "use strict";
   var pages=[], seq=0, workerP=null;
   var $=function(i){return document.getElementById(i);};
+  var logEl=$("log");
+  function log(m){ try{ var d=new Date(); var t=("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2)+":"+("0"+d.getSeconds()).slice(-2); logEl.textContent += "["+t+"] "+m+"\n"; logEl.scrollTop=logEl.scrollHeight; }catch(e){} }
+  window.onerror=function(msg,src,line){ log("JS ERROR: "+msg+" (line "+line+")"); };
+  window.addEventListener("unhandledrejection",function(e){ log("ASYNC ERROR: "+((e.reason&&e.reason.message)||e.reason||"unknown")); });
+
   var rate=$("rate"),step=$("step"),mode=$("mode");
-  var file=$("file"),file2=$("file2"),errEl=$("err"),statusEl=$("status");
+  var file=$("file"),file2=$("file2"),file3=$("file3"),errEl=$("err"),statusEl=$("status");
   var pagesEl=$("pages"),totalcard=$("totalcard"),totAmt=$("totAmt"),tiny=$("tiny"),dlBtn=$("dlBtn");
-  var RM='<svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>';
-  var ADD='<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>';
+  $("clrLog").onclick=function(){ logEl.textContent=""; };
+
+  log("App v4 ready. Tesseract "+(typeof Tesseract!=="undefined"?"loaded":"NOT loaded")+", html2canvas "+(typeof html2canvas!=="undefined"?"loaded":"NOT loaded")+".");
 
   function showErr(h){errEl.innerHTML=h;errEl.style.display=h?"block":"none";}
   function setStatus(t){ if(!t){statusEl.style.display="none";return;} statusEl.style.display="flex"; statusEl.innerHTML='<span class="spin"></span>'+t; }
@@ -148,41 +166,50 @@
 
   [rate,step,mode].forEach(function(el){el.addEventListener("input",function(){pages.forEach(function(p){p.items.forEach(function(it){if(it.el)it.el.textContent=fmt(np(it));});});updateTotal();});});
 
-  file.addEventListener("change",function(){ if(file.files&&file.files.length) setStatus("Opening "+file.files.length+" image(s)..."); handleFiles(file.files); file.value=""; });
-  file2.addEventListener("change",function(){ if(file2.files&&file2.files.length) setStatus("Opening "+file2.files.length+" image(s)..."); handleFiles(file2.files); file2.value=""; });
+  function onPicked(which, inputEl){
+    var n=inputEl.files?inputEl.files.length:0;
+    log(which+" picker fired: "+n+" file(s)");
+    if(n){ var f=inputEl.files[0]; log("  first file: name='"+(f.name||"?")+"' type='"+(f.type||"(blank)")+"' size="+(f.size?Math.round(f.size/1024)+"KB":"?")); setStatus("Opening "+n+" image(s)..."); }
+    handleFiles(inputEl.files); inputEl.value="";
+  }
+  file.addEventListener("change",function(){onPicked("Main box",file);});
+  file2.addEventListener("change",function(){onPicked("Add page",file2);});
+  file3.addEventListener("change",function(){onPicked("Backup button",file3);});
 
   function handleFiles(list){
     showErr("");
     var arr=Array.prototype.slice.call(list).filter(function(f){
       return /^image\//.test(f.type) || f.type==="" || /\.(png|jpe?g|webp|heic|heif|gif|bmp)$/i.test(f.name||"");
     });
+    log("Accepted "+arr.length+" image(s) of "+list.length);
     if(!arr.length){ setStatus(""); showErr("That didn't come through as an image. Pick a screenshot (PNG or JPG) from your gallery."); return; }
-    arr.forEach(function(f){ try{ addPage(f); }catch(e){ setStatus(""); showErr("Couldn't open that image: "+(e.message||e)); } });
+    arr.forEach(function(f){ try{ addPage(f); }catch(e){ setStatus(""); log("addPage threw: "+(e.message||e)); showErr("Couldn't open that image: "+(e.message||e)); } });
   }
 
   function addPage(f){
     var id=++seq, r=new FileReader();
-    r.onerror=function(){ setStatus(""); showErr("Couldn't read that file from your gallery. Try a different screenshot."); };
-    r.onload=function(){var p={id:id,imgData:r.result,mime:f.type||"image/jpeg",items:[],wrapW:0,wrapH:0,font:26};pages.push(p);buildPageEl(p);ocrPage(p);};
+    log("Reading file into memory...");
+    r.onerror=function(){ setStatus(""); log("FileReader ERROR"); showErr("Couldn't read that file from your gallery. Try a different screenshot."); };
+    r.onload=function(){ log("File read OK ("+Math.round((r.result.length||0)/1024)+"KB data). Building image..."); var p={id:id,imgData:r.result,mime:f.type||"image/jpeg",items:[],wrapW:0,wrapH:0,font:26};pages.push(p);buildPageEl(p);ocrPage(p);};
     r.readAsDataURL(f);
   }
 
   function buildPageEl(p){
     var wrap=document.createElement("div");wrap.className="page";
     var head=document.createElement("div");head.className="pagehead";head.innerHTML='<span>Page '+pages.length+'</span>';
-    var rm=document.createElement("button");rm.className="rm";rm.innerHTML=RM+'remove';rm.onclick=function(){removePage(p);};head.appendChild(rm);
+    var rm=document.createElement("button");rm.className="rm";rm.textContent="remove";rm.onclick=function(){removePage(p);};head.appendChild(rm);
     var box=document.createElement("div");box.className="shotbox";
     var iw=document.createElement("div");iw.className="imgWrap";
     var img=document.createElement("img");
     var busy=document.createElement("div");busy.className="busy";busy.innerHTML='<span class="spin"></span> reading prices...';
     iw.appendChild(img);iw.appendChild(busy);box.appendChild(iw);
-    var add=document.createElement("button");add.className="addp";add.innerHTML=ADD+'add a missed price';add.onclick=function(){addLabel(p);};
+    var add=document.createElement("button");add.className="addp";add.textContent="+ add a missed price";add.onclick=function(){addLabel(p);};
     wrap.appendChild(head);wrap.appendChild(box);wrap.appendChild(add);pagesEl.appendChild(wrap);
     p.el=wrap;p.imgWrap=iw;p.img=img;p.busy=busy;
-    img.onerror=function(){ if(p.busy)p.busy.style.display="none"; setStatus(""); showErr("That image format couldn't be shown. Use a normal screenshot (PNG/JPG)."); };
-    img.onload=function(){ setStatus(""); measure(p);drawLabels(p); };
+    img.onerror=function(){ if(p.busy)p.busy.style.display="none"; setStatus(""); log("IMG could not display (format not supported by browser?)"); showErr("That image couldn't be displayed. It may be in HEIC format - try taking a normal screenshot, which is PNG."); };
+    img.onload=function(){ setStatus(""); log("IMG displayed "+img.naturalWidth+"x"+img.naturalHeight+". Scrolling to it."); measure(p);drawLabels(p); wrap.scrollIntoView({behavior:"smooth",block:"center"}); };
     img.src=p.imgData;
-    dlBtn.disabled=false;totalcard.style.display="flex";tiny.style.display="flex";
+    dlBtn.disabled=false;totalcard.style.display="flex";tiny.style.display="block";
   }
   function removePage(p){
     var i=pages.indexOf(p);if(i<0)return;pages.splice(i,1);if(p.el&&p.el.parentNode)p.el.parentNode.removeChild(p.el);
@@ -196,8 +223,9 @@
   function getWorker(){
     if(workerP) return workerP;
     if(typeof Tesseract==="undefined"){return Promise.reject(new Error("engine_unloaded"));}
+    log("Loading OCR engine (first time only)...");
     setStatus("Loading the price reader (first time only)...");
-    workerP=Tesseract.createWorker("eng",1,{logger:function(m){ if(m.status){ var pct=m.progress?(" "+Math.round(m.progress*100)+"%"):""; setStatus(m.status.charAt(0).toUpperCase()+m.status.slice(1)+pct); } }}).then(function(w){ setStatus(""); return w; });
+    workerP=Tesseract.createWorker("eng",1,{logger:function(m){ if(m.status){ var pct=m.progress?(" "+Math.round(m.progress*100)+"%"):""; setStatus(m.status.charAt(0).toUpperCase()+m.status.slice(1)+pct); } }}).then(function(w){ log("OCR engine ready."); setStatus(""); return w; });
     return workerP;
   }
   function findWords(node,out){
@@ -216,7 +244,7 @@
     return v;
   }
   function ocrPage(p){
-    getWorker().then(function(worker){ return worker.recognize(p.imgData,{},{blocks:true}); }).then(function(res){
+    getWorker().then(function(worker){ log("OCR running on page..."); return worker.recognize(p.imgData,{},{blocks:true}); }).then(function(res){
       var words=[]; findWords(res.data,words);
       var H=p.img.naturalHeight||1, prices=[];
       words.forEach(function(w){ var v=parsePrice(w.text); if(v==null)return; prices.push({v:v,yc:(w.bbox.y0+w.bbox.y1)/2}); });
@@ -225,12 +253,14 @@
       prices.forEach(function(pr){ var g=groups[groups.length-1]; if(g && Math.abs(pr.yc-g.yc)<thr){ g.vals.push(pr.v); g.yc=(g.yc+pr.yc)/2; } else groups.push({yc:pr.yc, vals:[pr.v]}); });
       p.items=groups.map(function(g){ return {orig:Math.min.apply(null,g.vals), override:null, y:g.yc/H, left:null, top:null, el:null}; });
       if(p.busy)p.busy.style.display="none";
-      if(!p.items.length){ showErr('Couldn\'t read prices on a page. Tap "add a missed price" to place them, or re-add a clearer screenshot.'); }
+      log("OCR done: found "+groups.length+" price(s).");
+      if(!p.items.length){ showErr('Couldn\'t read prices on a page. Tap "+ add a missed price" to place them, or re-add a clearer screenshot.'); }
       drawLabels(p); updateTotal();
     }).catch(function(e){
       if(p.busy)p.busy.style.display="none"; setStatus("");
-      if((e.message||"")==="engine_unloaded"){ showErr("<b>The price reader didn't load.</b>Your image still shows, so tap \"add a missed price\" to place prices. (The reader loads from the internet the first time.)"); }
-      else { showErr("Reading failed on a page: "+(e.message||e)+'. Tap "add a missed price" to place prices yourself.'); }
+      log("OCR FAILED: "+(e.message||e));
+      if((e.message||"")==="engine_unloaded"){ showErr("<b>The price reader didn't load.</b>Your image still shows, so tap \"+ add a missed price\" to place prices."); }
+      else { showErr("Reading failed: "+(e.message||e)+'. Tap "+ add a missed price" to place prices yourself.'); }
     });
   }
 
