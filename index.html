@@ -1,7 +1,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cart Price Sheet</title>
-<!-- SHEIN price converter v4 : on-device OCR + on-screen diagnostics -->
+<!-- SHEIN price converter v5 : starts instantly, loads libs in background with fallbacks -->
 <style>
   :root{
     --ink:#1c1b1a; --ink-soft:#6b6763; --line:#e7e3dc; --paper:#faf8f4;
@@ -9,7 +9,6 @@
     --font-ui:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;
     --font-num:"DM Mono",ui-monospace,Menlo,monospace;
   }
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap');
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0}
   body{background:var(--paper);color:var(--ink);font-family:var(--font-ui);font-size:16px;line-height:1.45;-webkit-text-size-adjust:100%}
@@ -51,7 +50,7 @@
   .logwrap{margin-top:12px}
   .logwrap .lh{display:flex;justify-content:space-between;align-items:center;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);margin-bottom:5px}
   .logwrap button{font:inherit;font-size:12px;border:1px solid var(--line);background:var(--shade);border-radius:8px;padding:4px 9px;cursor:pointer}
-  #log{margin:0;background:#101214;color:#8fe9c0;font-family:var(--font-num);font-size:11px;line-height:1.55;padding:10px 11px;border-radius:10px;max-height:190px;overflow:auto;white-space:pre-wrap;word-break:break-word}
+  #log{margin:0;background:#101214;color:#8fe9c0;font-family:var(--font-num);font-size:11px;line-height:1.55;padding:10px 11px;border-radius:10px;max-height:200px;overflow:auto;white-space:pre-wrap;word-break:break-word}
 
   .page{margin-bottom:12px}
   .pagehead{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--ink-soft);margin:0 2px 6px}
@@ -86,7 +85,7 @@
     <div class="brand">
       <span class="logo"><svg viewBox="0 0 24 24"><path d="M3 6h18M3 6l1.5 13a2 2 0 0 0 2 1.8h11a2 2 0 0 0 2-1.8L21 6"/><path d="M8 6V5a4 4 0 0 1 8 0v1"/></svg></span>
       <h1>Cart &rarr; Price sheet</h1>
-      <span class="vpill">v4</span>
+      <span class="vpill">v5</span>
     </div>
     <p>Add screenshots &middot; prices read on your phone &middot; one total</p>
   </div>
@@ -138,8 +137,6 @@
   <button id="dlBtn" class="act dark" disabled><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg> Download to send</button>
 </div></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 (function(){
   "use strict";
@@ -155,7 +152,33 @@
   var pagesEl=$("pages"),totalcard=$("totalcard"),totAmt=$("totAmt"),tiny=$("tiny"),dlBtn=$("dlBtn");
   $("clrLog").onclick=function(){ logEl.textContent=""; };
 
-  log("App v4 ready. Tesseract "+(typeof Tesseract!=="undefined"?"loaded":"NOT loaded")+", html2canvas "+(typeof html2canvas!=="undefined"?"loaded":"NOT loaded")+".");
+  log("App v5 ready. Upload + preview work now. Loading reader + exporter in background...");
+
+  function host(u){ try{ return u.split("/")[2]; }catch(e){ return u; } }
+  function loadAny(name, urls){
+    return new Promise(function(resolve,reject){
+      var i=0;
+      (function tryNext(){
+        if(typeof window[name]!=="undefined"){ resolve(window[name]); return; }
+        if(i>=urls.length){ log(name+" could NOT load from any source (network blocked)."); reject(new Error(name+"_load_failed")); return; }
+        var url=urls[i++], s=document.createElement("script"), settled=false;
+        var to=setTimeout(function(){ if(settled)return; settled=true; log(name+": timeout from "+host(url)+", trying next..."); tryNext(); },9000);
+        s.onload=function(){ if(settled)return; settled=true; clearTimeout(to); if(typeof window[name]!=="undefined"){ log(name+" loaded from "+host(url)); resolve(window[name]); } else { log(name+": loaded but missing, trying next..."); tryNext(); } };
+        s.onerror=function(){ if(settled)return; settled=true; clearTimeout(to); log(name+": blocked at "+host(url)+", trying next..."); tryNext(); };
+        s.src=url; document.head.appendChild(s);
+      })();
+    });
+  }
+  var libTesseract=loadAny("Tesseract",[
+    "https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js",
+    "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js",
+    "https://unpkg.com/tesseract.js@5.1.1/dist/tesseract.min.js"
+  ]);
+  var libCanvas=loadAny("html2canvas",[
+    "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
+    "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js",
+    "https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"
+  ]);
 
   function showErr(h){errEl.innerHTML=h;errEl.style.display=h?"block":"none";}
   function setStatus(t){ if(!t){statusEl.style.display="none";return;} statusEl.style.display="flex"; statusEl.innerHTML='<span class="spin"></span>'+t; }
@@ -169,7 +192,7 @@
   function onPicked(which, inputEl){
     var n=inputEl.files?inputEl.files.length:0;
     log(which+" picker fired: "+n+" file(s)");
-    if(n){ var f=inputEl.files[0]; log("  first file: name='"+(f.name||"?")+"' type='"+(f.type||"(blank)")+"' size="+(f.size?Math.round(f.size/1024)+"KB":"?")); setStatus("Opening "+n+" image(s)..."); }
+    if(n){ var f=inputEl.files[0]; log("  first: name='"+(f.name||"?")+"' type='"+(f.type||"(blank)")+"' size="+(f.size?Math.round(f.size/1024)+"KB":"?")); setStatus("Opening "+n+" image(s)..."); }
     handleFiles(inputEl.files); inputEl.value="";
   }
   file.addEventListener("change",function(){onPicked("Main box",file);});
@@ -190,7 +213,7 @@
     var id=++seq, r=new FileReader();
     log("Reading file into memory...");
     r.onerror=function(){ setStatus(""); log("FileReader ERROR"); showErr("Couldn't read that file from your gallery. Try a different screenshot."); };
-    r.onload=function(){ log("File read OK ("+Math.round((r.result.length||0)/1024)+"KB data). Building image..."); var p={id:id,imgData:r.result,mime:f.type||"image/jpeg",items:[],wrapW:0,wrapH:0,font:26};pages.push(p);buildPageEl(p);ocrPage(p);};
+    r.onload=function(){ log("File read OK. Building image..."); var p={id:id,imgData:r.result,mime:f.type||"image/jpeg",items:[],wrapW:0,wrapH:0,font:26};pages.push(p);buildPageEl(p);ocrPage(p);};
     r.readAsDataURL(f);
   }
 
@@ -206,8 +229,8 @@
     var add=document.createElement("button");add.className="addp";add.textContent="+ add a missed price";add.onclick=function(){addLabel(p);};
     wrap.appendChild(head);wrap.appendChild(box);wrap.appendChild(add);pagesEl.appendChild(wrap);
     p.el=wrap;p.imgWrap=iw;p.img=img;p.busy=busy;
-    img.onerror=function(){ if(p.busy)p.busy.style.display="none"; setStatus(""); log("IMG could not display (format not supported by browser?)"); showErr("That image couldn't be displayed. It may be in HEIC format - try taking a normal screenshot, which is PNG."); };
-    img.onload=function(){ setStatus(""); log("IMG displayed "+img.naturalWidth+"x"+img.naturalHeight+". Scrolling to it."); measure(p);drawLabels(p); wrap.scrollIntoView({behavior:"smooth",block:"center"}); };
+    img.onerror=function(){ if(p.busy)p.busy.style.display="none"; setStatus(""); log("IMG could not display (format not supported?)"); showErr("That image couldn't be displayed. It may be HEIC - use a normal screenshot (PNG)."); };
+    img.onload=function(){ setStatus(""); log("IMG displayed "+img.naturalWidth+"x"+img.naturalHeight+"."); measure(p);drawLabels(p); wrap.scrollIntoView({behavior:"smooth",block:"center"}); };
     img.src=p.imgData;
     dlBtn.disabled=false;totalcard.style.display="flex";tiny.style.display="block";
   }
@@ -222,10 +245,11 @@
 
   function getWorker(){
     if(workerP) return workerP;
-    if(typeof Tesseract==="undefined"){return Promise.reject(new Error("engine_unloaded"));}
-    log("Loading OCR engine (first time only)...");
-    setStatus("Loading the price reader (first time only)...");
-    workerP=Tesseract.createWorker("eng",1,{logger:function(m){ if(m.status){ var pct=m.progress?(" "+Math.round(m.progress*100)+"%"):""; setStatus(m.status.charAt(0).toUpperCase()+m.status.slice(1)+pct); } }}).then(function(w){ log("OCR engine ready."); setStatus(""); return w; });
+    log("Waiting for price reader to be ready...");
+    setStatus("Getting the price reader ready...");
+    workerP=libTesseract.then(function(){
+      return Tesseract.createWorker("eng",1,{logger:function(m){ if(m.status){ var pct=m.progress?(" "+Math.round(m.progress*100)+"%"):""; setStatus(m.status.charAt(0).toUpperCase()+m.status.slice(1)+pct); } }});
+    }).then(function(w){ log("OCR engine ready."); setStatus(""); return w; });
     return workerP;
   }
   function findWords(node,out){
@@ -254,13 +278,12 @@
       p.items=groups.map(function(g){ return {orig:Math.min.apply(null,g.vals), override:null, y:g.yc/H, left:null, top:null, el:null}; });
       if(p.busy)p.busy.style.display="none";
       log("OCR done: found "+groups.length+" price(s).");
-      if(!p.items.length){ showErr('Couldn\'t read prices on a page. Tap "+ add a missed price" to place them, or re-add a clearer screenshot.'); }
+      if(!p.items.length){ showErr('Couldn\'t read prices on a page. Tap "+ add a missed price" to place them.'); }
       drawLabels(p); updateTotal();
     }).catch(function(e){
       if(p.busy)p.busy.style.display="none"; setStatus("");
-      log("OCR FAILED: "+(e.message||e));
-      if((e.message||"")==="engine_unloaded"){ showErr("<b>The price reader didn't load.</b>Your image still shows, so tap \"+ add a missed price\" to place prices."); }
-      else { showErr("Reading failed: "+(e.message||e)+'. Tap "+ add a missed price" to place prices yourself.'); }
+      log("OCR not available: "+(e.message||e));
+      showErr("<b>The price reader is blocked on this network.</b>Your image still shows - tap \"+ add a missed price\" to place prices. Download still works.");
     });
   }
 
@@ -300,15 +323,19 @@
   dlBtn.onclick=function(){
     if(!pages.length)return;
     dlBtn.disabled=true;var old=dlBtn.innerHTML;dlBtn.innerHTML='<span class="wspin"></span> Rendering...';
+    libCanvas.then(function(){ doDownload(old); }).catch(function(){ log("Exporter blocked - cannot render."); showErr("The image-maker is blocked on this network. Try Download on another Wi-Fi."); dlBtn.disabled=false; dlBtn.innerHTML=old; });
+  };
+  function doDownload(old){
     var stage=document.createElement("div");
     stage.style.cssText="position:fixed;left:-99999px;top:0;width:"+(pages[0].wrapW||520)+"px;background:#fff";
     pages.forEach(function(p){var c=p.imgWrap.cloneNode(true);c.querySelectorAll(".busy").forEach(function(b){b.remove();});c.style.width="100%";stage.appendChild(c);});
     var bar=document.createElement("div");
-    bar.style.cssText="display:flex;justify-content:space-between;align-items:center;padding:16px 18px;background:#1c1b1a;color:#fff;font-family:'Inter',sans-serif";
-    bar.innerHTML='<span style="font-weight:600;font-size:17px">'+($("totLbl").textContent||"Total")+'</span><span style="font-family:'+"'DM Mono',monospace"+';font-size:28px">'+totAmt.textContent+'</span>';
+    bar.style.cssText="display:flex;justify-content:space-between;align-items:center;padding:16px 18px;background:#1c1b1a;color:#fff;font-family:sans-serif";
+    bar.innerHTML='<span style="font-weight:600;font-size:17px">'+($("totLbl").textContent||"Total")+'</span><span style="font-family:monospace;font-size:28px">'+totAmt.textContent+'</span>';
     stage.appendChild(bar);document.body.appendChild(stage);
+    log("Rendering final image...");
     html2canvas(stage,{scale:2,backgroundColor:"#ffffff",useCORS:true,logging:false}).then(function(canvas){
-      var a=document.createElement("a");a.download="price-sheet.png";a.href=canvas.toDataURL("image/png");document.body.appendChild(a);a.click();a.remove();
-    }).catch(function(e){showErr("Render failed: "+(e.message||e));}).then(function(){document.body.removeChild(stage);dlBtn.disabled=false;dlBtn.innerHTML=old;});
-  };
+      var a=document.createElement("a");a.download="price-sheet.png";a.href=canvas.toDataURL("image/png");document.body.appendChild(a);a.click();a.remove(); log("Image downloaded.");
+    }).catch(function(e){log("Render failed: "+(e.message||e));showErr("Render failed: "+(e.message||e));}).then(function(){document.body.removeChild(stage);dlBtn.disabled=false;dlBtn.innerHTML=old;});
+  }
 })();
