@@ -127,7 +127,14 @@
 
   file.addEventListener("change",function(){handleFiles(file.files);file.value="";});
   file2.addEventListener("change",function(){handleFiles(file2.files);file2.value="";});
-  function handleFiles(list){showErr("");Array.prototype.slice.call(list).filter(function(f){return /^image\//.test(f.type);}).forEach(addPage);}
+  function handleFiles(list){
+    showErr("");
+    var arr=Array.prototype.slice.call(list).filter(function(f){
+      return /^image\//.test(f.type) || f.type==="" || /\.(png|jpe?g|jpeg|webp|heic|heif|gif|bmp)$/i.test(f.name||"");
+    });
+    if(!arr.length){ showErr("That didn't come through as an image. Pick a screenshot (PNG or JPG) from your gallery."); return; }
+    arr.forEach(addPage);
+  }
 
   function addPage(f){
     var id=++seq, r=new FileReader();
