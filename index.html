@@ -59,7 +59,7 @@
   <div class="top">
     <div class="brand">
       <span class="chip"><svg viewBox="0 0 24 24"><path d="M6 7h12l-1 13a2 2 0 0 1-2 1.8H9A2 2 0 0 1 7 20L6 7Z"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/></svg></span>
-      <h1>Cart &rarr; Price sheet <span class="v">v12</span></h1>
+      <h1>Cart &rarr; Price sheet <span class="v">v14</span></h1>
     </div>
     <p>Add screenshots &middot; tap each item to set its price &middot; one total</p>
   </div>
@@ -72,6 +72,14 @@
       <div class="f"><label>Mode</label><select id="mode"><option value="nearest" selected>Nearest</option><option value="up">Up</option></select></div>
     </div>
     <label class="upbtn">Add cart screenshot(s)<small>tap to pick one or more pages</small><input id="file" type="file" accept="image/*" multiple></label>
+    <div style="margin-top:12px">
+      <label style="font-size:12px;color:#6b6763">Cloud reader key (free, no card - get one at ocr.space)</label>
+      <div style="display:flex;gap:8px;margin-top:5px">
+        <input id="okey" type="text" placeholder="paste your free key" style="flex:1;font-family:monospace;height:44px;border:1px solid #e7e3dc;border-radius:10px;padding:0 10px;background:#fff">
+        <button id="okeysave" style="font:inherit;font-weight:700;border:none;border-radius:10px;background:#1c1b1a;color:#fff;padding:0 14px;cursor:pointer">Save</button>
+      </div>
+      <div id="okeystat" style="font-size:12px;color:#6b6763;margin-top:5px"></div>
+    </div>
     <div id="err" class="err"></div>
     <div id="ocr" style="font-size:12.5px;color:#6b6763;margin-top:9px;min-height:1.1em"></div>
   </div>
@@ -94,7 +102,7 @@
   "use strict";
   var $=function(i){return document.getElementById(i);};
   var alive=$("alive");
-  alive.textContent="App is RUNNING (v12) - auto-reading on";
+  alive.textContent="App is RUNNING (v14) - smart reader";
   alive.className="ok";
 
   var pages=[], seq=0, workerP=null;
@@ -152,30 +160,73 @@
       im.src=dataURL;
     });
   }
+  // ---- best free cloud reader: OCR.space (email signup, NO credit card) ----
+  var DEFAULT_KEY="K88759311988957";
+  var OKEY=""; try{ var _sv=window.localStorage.getItem("okey"); OKEY=(_sv&&_sv!=="helloworld")?_sv:DEFAULT_KEY; }catch(e){ OKEY=DEFAULT_KEY; }
+  (function(){
+    var inp=document.getElementById("okey"), btn=document.getElementById("okeysave"), st=document.getElementById("okeystat");
+    function upd(){ if(st) st.textContent=(OKEY&&OKEY!=="helloworld")?"Accurate cloud reading is ON (key built in).":"Using a shared test key. Get a free key at ocr.space for reliable reading."; }
+    if(inp&&OKEY&&OKEY!=="helloworld") inp.value=OKEY;
+    if(btn) btn.onclick=function(){ OKEY=((inp&&inp.value)||"").trim()||"helloworld"; try{window.localStorage.setItem("okey",OKEY);}catch(e){} upd(); setOcr("Reader key saved. Re-add a screenshot to use it."); };
+    upd();
+  })();
+  function ocrSpace(dataURL){
+    return new Promise(function(resolve,reject){
+      var im=new Image();
+      im.onload=function(){
+        var nw=im.naturalWidth||im.width||1, nh=im.naturalHeight||im.height||1;
+        var W=Math.min(1280,nw), H=Math.round(nh*(W/nw));
+        var cv=document.createElement("canvas");cv.width=W;cv.height=H;
+        var c=cv.getContext("2d");c.fillStyle="#fff";c.fillRect(0,0,W,H);c.drawImage(im,0,0,W,H);
+        var jpeg=cv.toDataURL("image/jpeg",0.85);
+        var form=new FormData();
+        form.append("apikey",OKEY||DEFAULT_KEY); form.append("base64Image",jpeg);
+        form.append("language","eng"); form.append("isOverlayRequired","true");
+        form.append("OCREngine","2"); form.append("scale","true");
+        fetch("https://api.ocr.space/parse/image",{method:"POST",body:form}).then(function(r){return r.json();}).then(function(j){
+          if(j.IsErroredOnProcessing){ reject(new Error((j.ErrorMessage&&j.ErrorMessage[0])||"reader busy")); return; }
+          var pr=j.ParsedResults&&j.ParsedResults[0], words=[];
+          if(pr&&pr.TextOverlay&&pr.TextOverlay.Lines){ pr.TextOverlay.Lines.forEach(function(ln){ (ln.Words||[]).forEach(function(w){ words.push({text:w.WordText||"",y0:w.Top,y1:w.Top+w.Height}); }); }); }
+          resolve({words:words,H:H});
+        }).catch(reject);
+      };
+      im.onerror=function(){reject(new Error("image"));};
+      im.src=dataURL;
+    });
+  }
+  // The Dirham symbol sits just before the price; the real price is the black/red one (lowest per row),
+  // never the struck-through grey original. Also strips a stray currency digit if the reader glued one on.
+  function processWords(p,words,H){
+    var prices=[];
+    words.forEach(function(w){var v=parsePrice(w.text);if(v==null)return;prices.push({v:v,yc:(w.y0+w.y1)/2});});
+    (function(){
+      var leads={},multi=0;
+      prices.forEach(function(q){var ss=Math.floor(q.v).toString();if(ss.length>=2){multi++;leads[ss[0]]=(leads[ss[0]]||0)+1;}});
+      var strip=null;
+      for(var d in leads){ if(multi>=2 && leads[d]>=Math.ceil(multi*0.6)){ strip=d; break; } }
+      if(strip){ prices.forEach(function(q){ var ip=Math.floor(q.v).toString(); if(ip.length>=2 && ip[0]===strip){ var dec=Math.round((q.v-Math.floor(q.v))*100); var nv=parseFloat(ip.slice(1)+"."+("0"+dec).slice(-2)); if(nv>0)q.v=nv; } }); }
+    })();
+    prices.sort(function(a,b){return a.yc-b.yc;});
+    var groups=[],thr=0.035*H;
+    prices.forEach(function(pr){var g=groups[groups.length-1];if(g&&Math.abs(pr.yc-g.yc)<thr){g.vals.push(pr.v);g.yc=(g.yc+pr.yc)/2;}else groups.push({yc:pr.yc,vals:[pr.v]});});
+    if(p.hint){p.hint.remove();p.hint=null;}
+    groups.forEach(function(g){ var frac=g.yc/H; var it={orig:Math.min.apply(null,g.vals),override:null,x:p.wrapW*0.78,y:frac*p.wrapH,el:null}; p.items.push(it); draw(p,it); });
+    total();
+    return groups.length;
+  }
   function ocrPage(p){
     if(p.hint)p.hint.textContent="reading prices...";
-    var procH=p.img.naturalHeight||1;
-    Promise.all([getWorker(),preprocess(p.data)]).then(function(a){ var w=a[0],pp=a[1]; if(pp)procH=pp.H; setOcr("Reading prices on the image..."); return w.recognize(pp?pp.canvas:p.data,{},{blocks:true}); }).then(function(res){
-      var words=[];findWords(res.data,words);
-      var H=procH, prices=[];
-      words.forEach(function(w){var v=parsePrice(w.text);if(v==null)return;prices.push({v:v,yc:(w.bbox.y0+w.bbox.y1)/2});});
-      // currency symbol is often misread as a digit glued to the front of the price.
-      // if most multi-digit prices share the same leading digit, treat it as that artifact and strip it.
-      (function(){
-        var leads={},multi=0;
-        prices.forEach(function(p){var s=Math.floor(p.v).toString();if(s.length>=2){multi++;leads[s[0]]=(leads[s[0]]||0)+1;}});
-        var strip=null;
-        for(var d in leads){ if(multi>=2 && leads[d]>=Math.ceil(multi*0.6)){ strip=d; break; } }
-        if(strip){ prices.forEach(function(p){ var ip=Math.floor(p.v).toString(); if(ip.length>=2 && ip[0]===strip){ var dec=Math.round((p.v-Math.floor(p.v))*100); var nv=parseFloat(ip.slice(1)+"."+("0"+dec).slice(-2)); if(nv>0)p.v=nv; } }); }
-      })();
-      prices.sort(function(a,b){return a.yc-b.yc;});
-      var groups=[],thr=0.035*H;
-      prices.forEach(function(pr){var g=groups[groups.length-1];if(g&&Math.abs(pr.yc-g.yc)<thr){g.vals.push(pr.v);g.yc=(g.yc+pr.yc)/2;}else groups.push({yc:pr.yc,vals:[pr.v]});});
-      if(p.hint){p.hint.remove();p.hint=null;}
-      groups.forEach(function(g){ var frac=g.yc/H; var it={orig:Math.min.apply(null,g.vals),override:null,x:p.wrapW*0.78,y:frac*p.wrapH,el:null}; p.items.push(it); draw(p,it); });
-      total(); setOcr(groups.length+" price(s) read. Tap any to fix, tap empty spots to add.");
-      if(!groups.length && p.hint===null){ var h=document.createElement("div");h.className="hint";h.textContent="No prices read - tap each item to add";p.iw.appendChild(h);p.hint=h; }
-    }).catch(function(e){ if(p.hint)p.hint.textContent="Tap each item to add its price"; setOcr("Auto-read failed: "+((e&&e.message)||e||"unknown")+" - you can still tap items to add prices."); });
+    setOcr("Reading prices...");
+    var cloud = OKEY ? ocrSpace(p.data).then(function(r){ if(!r.words.length) throw new Error("no text"); r.via="cloud"; return r; }) : Promise.reject(new Error("no key"));
+    cloud.catch(function(e){
+      setOcr("Cloud reader unavailable - using on-phone reader...");
+      var procH=p.img.naturalHeight||1;
+      return Promise.all([getWorker(),preprocess(p.data)]).then(function(a){ var w=a[0],pp=a[1]; if(pp)procH=pp.H; return w.recognize(pp?pp.canvas:p.data,{},{blocks:true}).then(function(res){ var ws=[];findWords(res.data,ws); return {words:ws.map(function(w){return {text:w.text,y0:w.bbox.y0,y1:w.bbox.y1};}),H:procH,via:"phone"}; }); });
+    }).then(function(r){
+      var n=processWords(p,r.words,r.H);
+      setOcr(n+" price(s) read by "+(r.via==="cloud"?"cloud reader":"on-phone reader")+". Tap any to fix, tap an empty spot to add.");
+      if(!n){ var h=document.createElement("div");h.className="hint";h.textContent="No prices read - tap each item to add";p.iw.appendChild(h);p.hint=h; }
+    }).catch(function(e){ if(p.hint)p.hint.textContent="Tap each item to add its price"; setOcr("Auto-read failed: "+((e&&e.message)||e||"unknown")); });
   }
   var rate=$("rate"),step=$("step"),mode=$("mode"),errEl=$("err");
   var pagesEl=$("pages"),totalcard=$("totalcard"),totAmt=$("totAmt"),dlBtn=$("dlBtn");
