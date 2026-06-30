@@ -32,10 +32,13 @@
 
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:13px}
   .card h2{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--soft);margin:0 0 11px;font-weight:700}
-  .set{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
-  .f{display:flex;flex-direction:column;gap:5px}
+  .set{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .set .f:first-child{grid-column:1 / -1}
+  .f{display:flex;flex-direction:column;gap:5px;min-width:0}
   .f label{font-size:12px;color:var(--soft)}
-  .f input,.f select{font:inherit;font-family:monospace;height:46px;padding:0 10px;border:1px solid var(--line);border-radius:11px;background:#fbf9ff;color:var(--ink)}
+  .f input,.f select{font:inherit;width:100%;height:46px;padding:0 10px;border:1px solid var(--line);border-radius:11px;background:#fbf9ff;color:var(--ink)}
+  .f input{font-family:monospace}
+  .f select{font-family:var(--ui);font-weight:600;-webkit-appearance:none;appearance:none;padding-right:26px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237d72a8' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center}
 
   .upbtn{position:relative;display:block;margin-top:12px;border:1.5px dashed var(--accent);border-radius:12px;padding:22px 14px;text-align:center;background:#f6f0ff;color:#8a3fb5;font-weight:700;font-size:16px;cursor:pointer}
   .upbtn small{display:block;color:var(--soft);font-weight:400;font-size:13px;margin-top:5px}
@@ -75,7 +78,7 @@
   <div class="top">
     <div class="brand">
       <span class="chip"><svg viewBox="0 0 24 24"><path d="M6 7h12l-1 13a2 2 0 0 1-2 1.8H9A2 2 0 0 1 7 20L6 7Z"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/></svg></span>
-      <h1><span class="gradtext">GlowyGlim</span> <span class="v">v19</span></h1>
+      <h1><span class="gradtext">GlowyGlim</span> <span class="v">v21</span></h1>
     </div>
     <p>Cart &rarr; Price sheet &middot; add screenshots &middot; tap to set prices &middot; one total</p>
   </div>
@@ -118,7 +121,7 @@
   "use strict";
   var $=function(i){return document.getElementById(i);};
   var alive=$("alive");
-  alive.textContent="App is RUNNING (v19) - smart reader";
+  alive.textContent="App is RUNNING (v21) - smart reader";
   alive.className="ok";
 
   var pages=[], seq=0, workerP=null;
@@ -325,31 +328,75 @@
   function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
   dlBtn.onclick=function(){
     if(!pages.length)return;
-    var W=0;pages.forEach(function(p){W=Math.max(W,p.img.naturalWidth||p.wrapW||520);});if(!W)W=520;
-    var barH=Math.round(W*0.20), totalH=0, lay=[];
-    pages.forEach(function(p){var iw=p.img.naturalWidth||p.wrapW,ih=p.img.naturalHeight||p.wrapH;var s=W/iw;var h=Math.round(ih*s);lay.push({p:p,y:totalH,h:h});totalH+=h;});
-    totalH+=barH;
-    var cv=document.createElement("canvas");cv.width=W;cv.height=totalH;var c=cv.getContext("2d");
-    c.fillStyle="#fff";c.fillRect(0,0,W,totalH);
-    lay.forEach(function(L){var p=L.p;c.drawImage(p.img,0,L.y,W,L.h);var ds=W/(p.wrapW||W);
-      p.items.forEach(function(it){var x=it.x*ds,y=L.y+it.y*ds,txt=fmt(np(it)),fs=Math.round(p.font*ds);
-        c.font="700 "+fs+"px monospace";var tw=c.measureText(txt).width,px=fs*0.35,py=fs*0.25;
-        c.fillStyle="rgba(255,255,255,0.86)";rr(c,x-tw/2-px,y-fs/2-py,tw+px*2,fs+py*2,fs*0.28);c.fill();
-        c.fillStyle="#111";c.textAlign="center";c.textBaseline="middle";c.fillText(txt,x,y);});});
-    var y0=totalH-barH;
-    c.fillStyle="#1c1b1a";c.fillRect(0,y0,W,barH);
-    var stripeH=Math.max(4,Math.round(barH*0.07));
-    c.fillStyle="#ff5a2d";c.fillRect(0,y0,W,stripeH);
-    var midY=y0+stripeH+(barH-stripeH)/2;
-    var tt=0,nn=0;pages.forEach(function(p){p.items.forEach(function(it){tt+=np(it);nn++;});});
-    c.textBaseline="middle";
-    c.textAlign="left";c.fillStyle="#f1ede6";c.font="700 "+Math.round(barH*0.20)+"px sans-serif";
-    c.fillText(($("totLbl").textContent||"Total").toUpperCase(),Math.round(W*0.05),midY-Math.round(barH*0.11));
-    c.fillStyle="#9a948d";c.font=Math.round(barH*0.13)+"px sans-serif";
-    c.fillText(nn+" item"+(nn===1?"":"s"),Math.round(W*0.05),midY+Math.round(barH*0.17));
-    c.textAlign="right";c.fillStyle="#fff";c.font="800 "+Math.round(barH*0.40)+"px sans-serif";
-    c.fillText(fmt(tt)+" EGP",W-Math.round(W*0.05),midY);
-    var a=document.createElement("a");a.download="price-sheet.png";a.href=cv.toDataURL("image/png");document.body.appendChild(a);a.click();a.remove();
+    try{
+      var N=pages.length;
+      var cols = N<=3 ? 1 : Math.min(4, Math.ceil(Math.sqrt(N)));
+      var rows = Math.ceil(N/cols);
+      var baseCW=0; pages.forEach(function(p){baseCW=Math.max(baseCW,p.img.naturalWidth||p.wrapW||520);}); if(!baseCW)baseCW=520;
+      var gap=Math.round(baseCW*0.045);
+      function pageH(p){var iw=p.img.naturalWidth||p.wrapW,ih=p.img.naturalHeight||p.wrapH;return Math.round(ih*(baseCW/iw));}
+      var rowH=[]; for(var r=0;r<rows;r++){var mh=0;for(var ci=0;ci<cols;ci++){var idx=r*cols+ci;if(idx<N)mh=Math.max(mh,pageH(pages[idx]));}rowH.push(mh);}
+      var gridW=cols*baseCW+(cols+1)*gap;
+      var headerH=Math.round(baseCW*0.46), barH=Math.round(baseCW*0.22), footerH=Math.round(baseCW*0.17);
+      var gridH=rowH.reduce(function(a,b){return a+b;},0)+(rows+1)*gap;
+      var totalW=gridW, totalH=headerH+gridH+barH+footerH;
+      // fit within a phone-safe canvas budget so it never fails or pixelates
+      var MAXDIM=4096, MAXAREA=16000000;
+      var GS=Math.min(1, MAXDIM/Math.max(totalW,totalH), Math.sqrt(MAXAREA/(totalW*totalH)));
+      var cv=document.createElement("canvas");
+      cv.width=Math.max(1,Math.round(totalW*GS)); cv.height=Math.max(1,Math.round(totalH*GS));
+      var c=cv.getContext("2d"); c.scale(GS,GS);
+      c.fillStyle="#f5f1ea"; c.fillRect(0,0,totalW,totalH);
+      // header brand
+      var bg=c.createLinearGradient(0,0,totalW,0); bg.addColorStop(0,"#ff7a4d"); bg.addColorStop(1,"#ff2e88");
+      c.textBaseline="middle"; c.textAlign="center";
+      c.fillStyle=bg; c.font="800 "+Math.round(headerH*0.42)+"px sans-serif";
+      c.fillText("GlowyGlim", totalW/2, headerH*0.42);
+      c.fillStyle="#9a948d"; c.font="600 "+Math.round(headerH*0.17)+"px sans-serif";
+      c.fillText("Price sheet", totalW/2, headerH*0.74);
+      // image grid (rows centered)
+      var rowY=headerH+gap;
+      for(var r=0;r<rows;r++){
+        var cnt=Math.min(cols, N-r*cols);
+        var rowW=cnt*baseCW+(cnt-1)*gap, startX=(gridW-rowW)/2;
+        for(var ci=0;ci<cnt;ci++){
+          var idx=r*cols+ci, p=pages[idx];
+          var x=startX+ci*(baseCW+gap), y=rowY, dh=pageH(p);
+          c.fillStyle="#fff"; c.fillRect(x-3,y-3,baseCW+6,dh+6);
+          c.drawImage(p.img,x,y,baseCW,dh);
+          c.strokeStyle="#e3ddd2"; c.lineWidth=2; c.strokeRect(x,y,baseCW,dh);
+          var ds=baseCW/(p.wrapW||baseCW);
+          p.items.forEach(function(it){
+            var lx=x+it.x*ds, ly=y+it.y*ds, txt=fmt(np(it)), fs=Math.round((p.font||34)*ds);
+            c.font="700 "+fs+"px monospace"; var tw=c.measureText(txt).width, px=fs*0.35, py=fs*0.25;
+            c.fillStyle="rgba(255,255,255,0.9)"; rr(c,lx-tw/2-px,ly-fs/2-py,tw+px*2,fs+py*2,fs*0.28); c.fill();
+            c.fillStyle="#111"; c.textAlign="center"; c.textBaseline="middle"; c.fillText(txt,lx,ly);
+          });
+        }
+        rowY+=rowH[r]+gap;
+      }
+      // total bar (full width)
+      var y0=headerH+gridH;
+      c.fillStyle="#1c1b1a"; c.fillRect(0,y0,gridW,barH);
+      var stripeH=Math.max(4,Math.round(barH*0.07));
+      c.fillStyle="#ff5a2d"; c.fillRect(0,y0,gridW,stripeH);
+      var midY=y0+stripeH+(barH-stripeH)/2;
+      var tt=0,nn=0; pages.forEach(function(p){p.items.forEach(function(it){tt+=np(it);nn++;});});
+      c.textBaseline="middle";
+      c.textAlign="left"; c.fillStyle="#f1ede6"; c.font="700 "+Math.round(barH*0.26)+"px sans-serif";
+      c.fillText(($("totLbl").textContent||"Total").toUpperCase(), Math.round(gridW*0.04), midY-Math.round(barH*0.13));
+      c.fillStyle="#9a948d"; c.font=Math.round(barH*0.16)+"px sans-serif";
+      c.fillText(nn+" item"+(nn===1?"":"s"), Math.round(gridW*0.04), midY+Math.round(barH*0.20));
+      c.textAlign="right"; c.fillStyle="#fff"; c.font="800 "+Math.round(barH*0.46)+"px sans-serif";
+      c.fillText(fmt(tt)+" EGP", gridW-Math.round(gridW*0.04), midY);
+      // footer
+      c.textAlign="center"; c.textBaseline="middle"; c.fillStyle="#9a948d";
+      c.font="600 "+Math.round(footerH*0.32)+"px sans-serif";
+      c.fillText("Thank you for shopping with GlowyGlim", totalW/2, y0+barH+footerH*0.5);
+      // export as JPEG (reliable on phones), fall back to PNG
+      var url; try{ url=cv.toDataURL("image/jpeg",0.92); }catch(e){ url=cv.toDataURL("image/png"); }
+      var a=document.createElement("a"); a.download="glowyglim-receipt.jpg"; a.href=url; document.body.appendChild(a); a.click(); a.remove();
+    }catch(err){ alert("Could not build the image ("+((err&&err.message)||err)+"). Try a few less screenshots, or let me know."); }
   };
 })();
 </script>
