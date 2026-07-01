@@ -93,7 +93,7 @@
   <div class="top">
     <div class="brand">
       <span class="chip"><svg viewBox="0 0 24 24"><path d="M6 7h12l-1 13a2 2 0 0 1-2 1.8H9A2 2 0 0 1 7 20L6 7Z"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/></svg></span>
-      <h1><span class="gradtext">GlowyGlim</span> <span class="v">v23</span></h1>
+      <h1><span class="gradtext">GlowyGlim</span> <span class="v">v25</span></h1>
     </div>
     <p>Cart &rarr; Price sheet &middot; add screenshots &middot; tap to set prices &middot; one total</p>
   </div>
@@ -150,7 +150,7 @@
   "use strict";
   var $=function(i){return document.getElementById(i);};
   var alive=$("alive");
-  alive.textContent="App is RUNNING (v23) - smart reader";
+  alive.textContent="App is RUNNING (v25) - smart reader";
   alive.className="ok";
 
   var pages=[], seq=0, workerP=null;
@@ -403,7 +403,7 @@
       var cv=document.createElement("canvas");
       cv.width=Math.max(1,Math.round(totalW*GS)); cv.height=Math.max(1,Math.round(totalH*GS));
       var c=cv.getContext("2d"); c.scale(GS,GS);
-      c.fillStyle="#e6ded0"; c.fillRect(0,0,totalW,totalH);
+      c.fillStyle="#ddd0f4"; c.fillRect(0,0,totalW,totalH);
       // header brand
       var bg=c.createLinearGradient(0,0,totalW,0); bg.addColorStop(0,"#ff7a4d"); bg.addColorStop(1,"#ff2e88");
       c.textBaseline="middle"; c.textAlign="center";
@@ -421,7 +421,7 @@
           var x=startX+ci*(baseCW+gap), y=rowY, dh=pageH(p);
           c.fillStyle="#fff"; c.fillRect(x-3,y-3,baseCW+6,dh+6);
           c.drawImage(p.img,x,y,baseCW,dh);
-          c.strokeStyle="#d3c9b6"; c.lineWidth=2; c.strokeRect(x,y,baseCW,dh);
+          c.strokeStyle="#c7b6e8"; c.lineWidth=2; c.strokeRect(x,y,baseCW,dh);
           var ds=baseCW/(p.wrapW||baseCW);
           p.items.forEach(function(it){
             var lx=x+it.x*ds, ly=y+it.y*ds, txt=fmt(np(it)), fs=Math.round((p.font||34)*ds);
@@ -451,11 +451,15 @@
       if(dateStr){ c.fillText(dateStr, padX, topY+Math.round(barH*0.48)); }
       c.fillStyle="#8f8981"; c.font="600 "+Math.round(barH*0.088)+"px sans-serif";
       c.fillText("Rate \u00d7"+rateV+"   \u00b7   "+modeTxt+" "+stepV, padX, topY+Math.round(barH*0.61));
-      c.textAlign="right";
+      c.textAlign="right"; c.textBaseline="alphabetic";
       c.fillStyle="#b7b1a9"; c.font="700 "+Math.round(barH*0.10)+"px sans-serif";
-      c.fillText("GlowyGlim", gridW-padX, y0+Math.round(barH*0.30));
-      c.fillStyle="#ffffff"; c.font="800 "+Math.round(barH*0.33)+"px sans-serif";
-      c.fillText(fmt(tt)+" EGP", gridW-padX, y0+Math.round(barH*0.72));
+      c.fillText("GlowyGlim", gridW-padX, y0+Math.round(barH*0.28));
+      var amtTxt=fmt(tt), egpF=Math.round(barH*0.19), numF=Math.round(barH*0.48), amtBase=y0+Math.round(barH*0.76);
+      c.font="800 "+egpF+"px sans-serif"; c.fillStyle="#ff9bbf";
+      var egpW=c.measureText(" EGP").width;
+      c.fillText(" EGP", gridW-padX, amtBase);
+      c.font="800 "+numF+"px sans-serif"; c.fillStyle="#ffffff";
+      c.fillText(amtTxt, gridW-padX-egpW, amtBase);
       // footer
       c.textAlign="center"; c.textBaseline="middle"; c.fillStyle="#7f7a72";
       c.font="600 "+Math.round(footerH*0.30)+"px sans-serif";
