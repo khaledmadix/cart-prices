@@ -93,7 +93,7 @@
   <div class="top">
     <div class="brand">
       <span class="chip"><svg viewBox="0 0 24 24"><path d="M6 7h12l-1 13a2 2 0 0 1-2 1.8H9A2 2 0 0 1 7 20L6 7Z"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/></svg></span>
-      <h1><span class="gradtext">GlowyGlim</span> <span class="v">v26</span></h1>
+      <h1><span class="gradtext">GlowyGlim</span> <span class="v">v29</span></h1>
     </div>
     <p>Cart &rarr; Price sheet &middot; add screenshots &middot; tap to set prices &middot; one total</p>
   </div>
@@ -150,7 +150,7 @@
   "use strict";
   var $=function(i){return document.getElementById(i);};
   var alive=$("alive");
-  alive.textContent="App is RUNNING (v26) - smart reader";
+  alive.textContent="App is RUNNING (v29) - smart reader";
   alive.className="ok";
 
   var pages=[], seq=0, workerP=null;
@@ -234,8 +234,8 @@
         fetch("https://api.ocr.space/parse/image",{method:"POST",body:form}).then(function(r){return r.json();}).then(function(j){
           if(j.IsErroredOnProcessing){ reject(new Error((j.ErrorMessage&&j.ErrorMessage[0])||"reader busy")); return; }
           var pr=j.ParsedResults&&j.ParsedResults[0], words=[];
-          if(pr&&pr.TextOverlay&&pr.TextOverlay.Lines){ pr.TextOverlay.Lines.forEach(function(ln){ (ln.Words||[]).forEach(function(w){ words.push({text:w.WordText||"",y0:w.Top,y1:w.Top+w.Height}); }); }); }
-          resolve({words:words,H:H});
+          if(pr&&pr.TextOverlay&&pr.TextOverlay.Lines){ pr.TextOverlay.Lines.forEach(function(ln){ (ln.Words||[]).forEach(function(w){ words.push({text:w.WordText||"",y0:w.Top,y1:w.Top+w.Height,x:w.Left,h:w.Height}); }); }); }
+          resolve({words:words,H:H,W:W});
         }).catch(reject);
       };
       im.onerror=function(){reject(new Error("image"));};
@@ -244,9 +244,29 @@
   }
   // The Dirham symbol sits just before the price; the real price is the black/red one (lowest per row),
   // never the struck-through grey original. Also strips a stray currency digit if the reader glued one on.
-  function processWords(p,words,H){
+  function processWords(p,words,H,W){
+    W=W||1200;
+    // find the bottom summary box and the top promo banner, and ignore both
+    var cutY=Infinity, topCut=-Infinity, margin=0.02*H;
+    words.forEach(function(w){
+      var t=(w.text||"").toLowerCase().replace(/[^a-z]/g,"");
+      var wy0=(w.y0!=null?w.y0:0), wy1=(w.y1!=null?w.y1:wy0);
+      // bottom summary markers -- deliberately NOT "coupon" (that shows per item as "after coupon")
+      if(t.indexOf("checkout")>=0||t.indexOf("subtotal")>=0||t==="total"||t==="saved"||t==="savedwith"||t==="grandtotal"||t==="ordertotal"){
+        if(wy0<cutY) cutY=wy0;
+      }
+      // top promo banner e.g. "Add X more to get a FREE GIFT" -- only in the top strip
+      if(t.indexOf("gift")>=0 && wy0<0.25*H){ if(wy1>topCut) topCut=wy1; }
+    });
     var prices=[];
-    words.forEach(function(w){var v=parsePrice(w.text);if(v==null)return;prices.push({v:v,yc:(w.y0+w.y1)/2});});
+    words.forEach(function(w){
+      var v=parsePrice(w.text); if(v==null) return;
+      var yc=(w.y0+w.y1)/2;
+      if(yc>=cutY-margin) return;   // drop bottom summary box
+      if(yc<=topCut+margin) return; // drop top promo banner
+      prices.push({v:v,yc:yc,h:(w.h!=null?w.h:(w.y1-w.y0)),x:(w.x!=null?w.x:0)});
+    });
+    // strip a stray currency digit glued to the front (dirham glyph misread)
     (function(){
       var leads={},multi=0;
       prices.forEach(function(q){var ss=Math.floor(q.v).toString();if(ss.length>=2){multi++;leads[ss[0]]=(leads[ss[0]]||0)+1;}});
@@ -256,9 +276,21 @@
     })();
     prices.sort(function(a,b){return a.yc-b.yc;});
     var groups=[],thr=0.035*H;
-    prices.forEach(function(pr){var g=groups[groups.length-1];if(g&&Math.abs(pr.yc-g.yc)<thr){g.vals.push(pr.v);g.yc=(g.yc+pr.yc)/2;}else groups.push({yc:pr.yc,vals:[pr.v]});});
+    prices.forEach(function(pr){var g=groups[groups.length-1];if(g&&Math.abs(pr.yc-g.yc)<thr){g.items.push(pr);g.yc=(g.yc+pr.yc)/2;}else groups.push({yc:pr.yc,items:[pr]});});
     if(p.hint){p.hint.remove();p.hint=null;}
-    groups.forEach(function(g){ var frac=g.yc/H; var it={orig:Math.min.apply(null,g.vals),override:null,x:p.wrapW*0.78,y:frac*p.wrapH,el:null}; p.items.push(it); draw(p,it); });
+    groups.forEach(function(g){
+      // the real price = the biggest-font one in the row; if similar sizes, the left-most
+      var maxH=0; g.items.forEach(function(q){ if(q.h>maxH)maxH=q.h; });
+      var cand=g.items.filter(function(q){ return q.h>=0.82*maxH; });
+      cand.sort(function(a,b){ return a.x-b.x; });
+      var chosen=cand.length?cand[0]:g.items[0];
+      var qty=1;
+      words.forEach(function(w){
+        var wy=(((w.y0!=null?w.y0:0)+(w.y1!=null?w.y1:0))/2), wx=(w.x!=null?w.x:0);
+        if(Math.abs(wy-g.yc)<thr && wx>0.70*W){ var mm=(w.text||"").replace(/[^0-9]/g,""); if(/^\d{1,2}$/.test(mm)){ var qn=parseInt(mm,10); if(qn>=1&&qn<=99) qty=qn; } }
+      });
+      var frac=g.yc/H; var it={orig:chosen.v,qty:qty,override:null,x:p.wrapW*0.78,y:frac*p.wrapH,el:null}; p.items.push(it); draw(p,it);
+    });
     total();
     return groups.length;
   }
@@ -269,9 +301,9 @@
     cloud.catch(function(e){
       setOcr("Cloud reader unavailable - using on-phone reader...");
       var procH=p.img.naturalHeight||1;
-      return Promise.all([getWorker(),preprocess(p.data)]).then(function(a){ var w=a[0],pp=a[1]; if(pp)procH=pp.H; return w.recognize(pp?pp.canvas:p.data,{},{blocks:true}).then(function(res){ var ws=[];findWords(res.data,ws); return {words:ws.map(function(w){return {text:w.text,y0:w.bbox.y0,y1:w.bbox.y1};}),H:procH,via:"phone"}; }); });
+      return Promise.all([getWorker(),preprocess(p.data)]).then(function(a){ var w=a[0],pp=a[1]; if(pp)procH=pp.H; return w.recognize(pp?pp.canvas:p.data,{},{blocks:true}).then(function(res){ var ws=[];findWords(res.data,ws); return {words:ws.map(function(w){return {text:w.text,y0:w.bbox.y0,y1:w.bbox.y1,x:w.bbox.x0,h:(w.bbox.y1-w.bbox.y0)};}),H:procH,W:(pp&&pp.canvas?pp.canvas.width:(p.img.naturalWidth||1200)),via:"phone"}; }); });
     }).then(function(r){
-      var n=processWords(p,r.words,r.H);
+      var n=processWords(p,r.words,r.H,r.W);
       setOcr(n+" price(s) read by "+(r.via==="cloud"?"cloud reader":"on-phone reader")+". Tap any to fix, tap an empty spot to add.");
       if(!n){ var h=document.createElement("div");h.className="hint";h.textContent="No prices read - tap each item to add";p.iw.appendChild(h);p.hint=h; }
     }).catch(function(e){ if(p.hint)p.hint.textContent="Tap each item to add its price"; setOcr("Auto-read failed: "+((e&&e.message)||e||"unknown")); });
@@ -281,7 +313,8 @@
 
   function showErr(t){errEl.textContent=t;errEl.style.display=t?"block":"none";}
   function convert(o){var r=parseFloat(rate.value)||0,st=parseFloat(step.value)||1,raw=o*r;var v=mode.value==="up"?Math.ceil(raw/st)*st:Math.round(raw/st)*st;return Math.round(v*100)/100;}
-  function np(it){return it.override!=null?it.override:convert(it.orig||0);}
+  function np(it){return it.override!=null?it.override:convert(it.orig||0)*(it.qty||1);}
+  function labelStr(it){var b=fmt(np(it));if(it.override==null&&(it.qty||1)>1)b+="  \u00d7"+it.qty;return b;}
   function fmt(n){return (Math.round(n*100)/100).toString().replace(/\.0+$/,"");}
 
   [rate,step,mode].forEach(function(el){el.addEventListener("input",function(){pages.forEach(function(p){p.items.forEach(function(it){if(it.el)it.el.textContent=fmt(np(it));});});total();});});
@@ -319,15 +352,17 @@
   function measure(p){p.wrapW=p.iw.clientWidth;p.wrapH=p.iw.clientHeight;p.font=Math.max(18,Math.round(p.wrapW*0.075));}
 
   function addLabel(p,x,y){
-    var v=prompt("SHEIN price for this item (the number on the screenshot):","");
+    var v=prompt("Item price in AED (the number on the screenshot):","");
     if(v==null||v.trim()==="")return;
     var orig=parseFloat(v); if(isNaN(orig))return;
+    var q=prompt("Quantity (how many of this item):","1"); var qty=1;
+    if(q!=null){var qq=parseInt(q,10);if(!isNaN(qq)&&qq>=1)qty=qq;}
     if(p.hint){p.hint.remove();p.hint=null;}
-    var it={orig:orig,override:null,x:x,y:y,el:null};
+    var it={orig:orig,qty:qty,override:null,x:x,y:y,el:null};
     p.items.push(it); draw(p,it); total();
   }
   function draw(p,it){
-    var lab=document.createElement("div");lab.className="plabel";lab.style.fontSize=p.font+"px";lab.textContent=fmt(np(it));
+    var lab=document.createElement("div");lab.className="plabel";lab.style.fontSize=p.font+"px";lab.textContent=labelStr(it);
     lab.style.left=it.x+"px";lab.style.top=it.y+"px";it.el=lab;
     var sx,sy,ox,oy,moved;
     function dn(e){if(e.cancelable)e.preventDefault();var q=pt(e);sx=q.x;sy=q.y;ox=it.x;oy=it.y;moved=false;
@@ -338,10 +373,13 @@
     p.iw.appendChild(lab);
   }
   function edit(p,it){
-    var v=prompt("SHEIN price (leave empty to remove this one):",it.orig);
+    var v=prompt("Item price in AED (leave empty to remove this one):",it.orig);
     if(v==null)return;
     if(v.trim()===""){var i=p.items.indexOf(it);if(i>-1)p.items.splice(i,1);if(it.el)it.el.remove();total();return;}
-    var o=parseFloat(v);if(!isNaN(o)){it.orig=o;it.override=null;it.el.textContent=fmt(np(it));total();}
+    var o=parseFloat(v);if(!isNaN(o)){it.orig=o;it.override=null;}
+    var q=prompt("Quantity (how many of this item):",it.qty||1);
+    if(q!=null){var qq=parseInt(q,10);if(!isNaN(qq)&&qq>=1)it.qty=qq;}
+    if(it.el)it.el.textContent=labelStr(it);total();
   }
   function pt(e){var t=e.touches&&e.touches[0];return {x:t?t.clientX:e.clientX,y:t?t.clientY:e.clientY};}
   var totVal=0;
@@ -424,7 +462,7 @@
           c.strokeStyle="#c7b6e8"; c.lineWidth=2; c.strokeRect(x,y,baseCW,dh);
           var ds=baseCW/(p.wrapW||baseCW);
           p.items.forEach(function(it){
-            var lx=x+it.x*ds, ly=y+it.y*ds, txt=fmt(np(it)), fs=Math.round((p.font||34)*ds);
+            var lx=x+it.x*ds, ly=y+it.y*ds, txt=labelStr(it), fs=Math.round((p.font||34)*ds);
             c.font="700 "+fs+"px monospace"; var tw=c.measureText(txt).width, px=fs*0.35, py=fs*0.25;
             c.fillStyle="rgba(255,255,255,0.9)"; rr(c,lx-tw/2-px,ly-fs/2-py,tw+px*2,fs+py*2,fs*0.28); c.fill();
             c.fillStyle="#111"; c.textAlign="center"; c.textBaseline="middle"; c.fillText(txt,lx,ly);
