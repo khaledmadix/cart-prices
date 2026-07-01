@@ -93,7 +93,7 @@
   <div class="top">
     <div class="brand">
       <span class="chip"><svg viewBox="0 0 24 24"><path d="M6 7h12l-1 13a2 2 0 0 1-2 1.8H9A2 2 0 0 1 7 20L6 7Z"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/></svg></span>
-      <h1><span class="gradtext">GlowyGlim</span> <span class="v">v25</span></h1>
+      <h1><span class="gradtext">GlowyGlim</span> <span class="v">v26</span></h1>
     </div>
     <p>Cart &rarr; Price sheet &middot; add screenshots &middot; tap to set prices &middot; one total</p>
   </div>
@@ -150,7 +150,7 @@
   "use strict";
   var $=function(i){return document.getElementById(i);};
   var alive=$("alive");
-  alive.textContent="App is RUNNING (v25) - smart reader";
+  alive.textContent="App is RUNNING (v26) - smart reader";
   alive.className="ok";
 
   var pages=[], seq=0, workerP=null;
@@ -394,7 +394,7 @@
       function pageH(p){var iw=p.img.naturalWidth||p.wrapW,ih=p.img.naturalHeight||p.wrapH;return Math.round(ih*(baseCW/iw));}
       var rowH=[]; for(var r=0;r<rows;r++){var mh=0;for(var ci=0;ci<cols;ci++){var idx=r*cols+ci;if(idx<N)mh=Math.max(mh,pageH(pages[idx]));}rowH.push(mh);}
       var gridW=cols*baseCW+(cols+1)*gap;
-      var headerH=Math.round(baseCW*0.46), barH=Math.round(baseCW*0.30), footerH=Math.round(baseCW*0.17);
+      var headerH=Math.round(baseCW*0.46), barH=Math.round(baseCW*0.34), footerH=Math.round(baseCW*0.17);
       var gridH=rowH.reduce(function(a,b){return a+b;},0)+(rows+1)*gap;
       var totalW=gridW, totalH=headerH+gridH+barH+footerH;
       // fit within a phone-safe canvas budget so it never fails or pixelates
@@ -443,23 +443,25 @@
       var rateV=(($("rate")&&$("rate").value)||"16"), stepV=(($("step")&&$("step").value)||"5"), modeV=(($("mode")&&$("mode").value)||"nearest");
       var modeTxt=(modeV==="up"?"up to":"nearest"), dateStr="";
       try{ dateStr=new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}); }catch(e){ dateStr=""; }
-      c.textAlign="left"; c.textBaseline="alphabetic";
-      c.fillStyle="#ffffff"; c.font="800 "+Math.round(barH*0.19)+"px sans-serif";
-      c.fillText("TOTAL", padX, topY+Math.round(barH*0.17));
-      c.fillStyle="#cfc9c2"; c.font="600 "+Math.round(barH*0.100)+"px sans-serif";
-      c.fillText(nn+" item"+(nn===1?"":"s")+"   \u00b7   "+N+" page"+(N===1?"":"s"), padX, topY+Math.round(barH*0.34));
-      if(dateStr){ c.fillText(dateStr, padX, topY+Math.round(barH*0.48)); }
-      c.fillStyle="#8f8981"; c.font="600 "+Math.round(barH*0.088)+"px sans-serif";
-      c.fillText("Rate \u00d7"+rateV+"   \u00b7   "+modeTxt+" "+stepV, padX, topY+Math.round(barH*0.61));
-      c.textAlign="right"; c.textBaseline="alphabetic";
-      c.fillStyle="#b7b1a9"; c.font="700 "+Math.round(barH*0.10)+"px sans-serif";
-      c.fillText("GlowyGlim", gridW-padX, y0+Math.round(barH*0.28));
-      var amtTxt=fmt(tt), egpF=Math.round(barH*0.19), numF=Math.round(barH*0.48), amtBase=y0+Math.round(barH*0.76);
-      c.font="800 "+egpF+"px sans-serif"; c.fillStyle="#ff9bbf";
-      var egpW=c.measureText(" EGP").width;
-      c.fillText(" EGP", gridW-padX, amtBase);
-      c.font="800 "+numF+"px sans-serif"; c.fillStyle="#ffffff";
-      c.fillText(amtTxt, gridW-padX-egpW, amtBase);
+      // ----- centered total (hero) -----
+      var cx=gridW/2;
+      c.textAlign="center"; c.textBaseline="alphabetic";
+      c.fillStyle="#cfc9c2"; c.font="700 "+Math.round(barH*0.12)+"px sans-serif";
+      c.fillText("TOTAL", cx, y0+stripeH+Math.round(barH*0.22));
+      // amount with thousands separators; big white number + accent EGP, centered as a group
+      var r=Math.round(tt*100)/100, ip=Math.floor(r), dp=Math.round((r-ip)*100);
+      var amtTxt=ip.toString().replace(/\B(?=(\d{3})+(?!\d))/g,",")+(dp?("."+("0"+dp).slice(-2)):"");
+      var numF=Math.round(barH*0.40), egpF=Math.round(barH*0.18);
+      c.font="800 "+numF+"px sans-serif"; var numW=c.measureText(amtTxt).width;
+      c.font="800 "+egpF+"px sans-serif"; var egpW=c.measureText(" EGP").width;
+      var startX=cx-(numW+egpW)/2, amtBase=y0+Math.round(barH*0.64);
+      c.textAlign="left";
+      c.font="800 "+numF+"px sans-serif"; c.fillStyle="#ffffff"; c.fillText(amtTxt, startX, amtBase);
+      c.font="800 "+egpF+"px sans-serif"; c.fillStyle="#ff9bbf"; c.fillText(" EGP", startX+numW, amtBase);
+      // small details line centered below
+      c.textAlign="center"; c.fillStyle="#8f8981"; c.font="600 "+Math.round(barH*0.090)+"px sans-serif";
+      var det=nn+" item"+(nn===1?"":"s")+"   \u00b7   "+N+" page"+(N===1?"":"s")+(dateStr?("   \u00b7   "+dateStr):"");
+      c.fillText(det, cx, y0+Math.round(barH*0.90));
       // footer
       c.textAlign="center"; c.textBaseline="middle"; c.fillStyle="#7f7a72";
       c.font="600 "+Math.round(footerH*0.30)+"px sans-serif";
