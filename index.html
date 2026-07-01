@@ -78,7 +78,7 @@
   <div class="top">
     <div class="brand">
       <span class="chip"><svg viewBox="0 0 24 24"><path d="M6 7h12l-1 13a2 2 0 0 1-2 1.8H9A2 2 0 0 1 7 20L6 7Z"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/></svg></span>
-      <h1><span class="gradtext">GlowyGlim</span> <span class="v">v21</span></h1>
+      <h1><span class="gradtext">GlowyGlim</span> <span class="v">v22</span></h1>
     </div>
     <p>Cart &rarr; Price sheet &middot; add screenshots &middot; tap to set prices &middot; one total</p>
   </div>
@@ -121,7 +121,7 @@
   "use strict";
   var $=function(i){return document.getElementById(i);};
   var alive=$("alive");
-  alive.textContent="App is RUNNING (v21) - smart reader";
+  alive.textContent="App is RUNNING (v22) - smart reader";
   alive.className="ok";
 
   var pages=[], seq=0, workerP=null;
@@ -326,6 +326,29 @@
   window.addEventListener("resize",function(){pages.forEach(function(p){if(p.img&&p.img.complete)measure(p);});});
 
   function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+  function ggSave(cv){
+    function viaDataURL(){
+      try{ var u=cv.toDataURL("image/jpeg",0.9); var a=document.createElement("a"); a.href=u; a.download="glowyglim-receipt.jpg"; document.body.appendChild(a); a.click(); a.remove(); }
+      catch(e){ alert("Couldn't save on this phone with that many pages. Try splitting into two receipts with fewer screenshots each."); }
+    }
+    function blobDownload(blob){
+      try{
+        var url=URL.createObjectURL(blob);
+        var a=document.createElement("a"); a.href=url; a.download="glowyglim-receipt.jpg";
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function(){ try{URL.revokeObjectURL(url);}catch(e){} },6000);
+      }catch(e){ viaDataURL(); }
+    }
+    if(!cv.toBlob){ viaDataURL(); return; }
+    cv.toBlob(function(blob){
+      if(!blob){ viaDataURL(); return; }
+      var file=null; try{ file=new File([blob],"glowyglim-receipt.jpg",{type:"image/jpeg"}); }catch(e){}
+      if(file && navigator.canShare && navigator.canShare({files:[file]})){
+        navigator.share({files:[file],title:"GlowyGlim",text:"GlowyGlim price sheet"})
+          .catch(function(err){ if(err&&err.name==="AbortError")return; blobDownload(blob); });
+      } else { blobDownload(blob); }
+    }, "image/jpeg", 0.92);
+  }
   dlBtn.onclick=function(){
     if(!pages.length)return;
     try{
@@ -341,7 +364,7 @@
       var gridH=rowH.reduce(function(a,b){return a+b;},0)+(rows+1)*gap;
       var totalW=gridW, totalH=headerH+gridH+barH+footerH;
       // fit within a phone-safe canvas budget so it never fails or pixelates
-      var MAXDIM=4096, MAXAREA=16000000;
+      var MAXDIM=4096, MAXAREA=13000000;
       var GS=Math.min(1, MAXDIM/Math.max(totalW,totalH), Math.sqrt(MAXAREA/(totalW*totalH)));
       var cv=document.createElement("canvas");
       cv.width=Math.max(1,Math.round(totalW*GS)); cv.height=Math.max(1,Math.round(totalH*GS));
@@ -394,8 +417,7 @@
       c.font="600 "+Math.round(footerH*0.32)+"px sans-serif";
       c.fillText("Thank you for shopping with GlowyGlim", totalW/2, y0+barH+footerH*0.5);
       // export as JPEG (reliable on phones), fall back to PNG
-      var url; try{ url=cv.toDataURL("image/jpeg",0.92); }catch(e){ url=cv.toDataURL("image/png"); }
-      var a=document.createElement("a"); a.download="glowyglim-receipt.jpg"; a.href=url; document.body.appendChild(a); a.click(); a.remove();
+      ggSave(cv);
     }catch(err){ alert("Could not build the image ("+((err&&err.message)||err)+"). Try a few less screenshots, or let me know."); }
   };
 })();
