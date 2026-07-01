@@ -93,7 +93,7 @@
   <div class="top">
     <div class="brand">
       <span class="chip"><svg viewBox="0 0 24 24"><path d="M6 7h12l-1 13a2 2 0 0 1-2 1.8H9A2 2 0 0 1 7 20L6 7Z"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/></svg></span>
-      <h1><span class="gradtext">GlowyGlim</span> <span class="v">v33</span></h1>
+      <h1><span class="gradtext">GlowyGlim</span> <span class="v">v34</span></h1>
     </div>
     <p>Cart &rarr; Price sheet &middot; add screenshots &middot; tap to set prices &middot; one total</p>
   </div>
@@ -152,7 +152,7 @@
   "use strict";
   var $=function(i){return document.getElementById(i);};
   var alive=$("alive");
-  alive.textContent="App is RUNNING (v33) - smart reader";
+  alive.textContent="App is RUNNING (v34) - smart reader";
   alive.className="ok";
 
   var pages=[], seq=0, workerP=null;
@@ -280,6 +280,12 @@
       var yc=(w.y0+w.y1)/2;
       if(yc>=cutY) return;          // drop bottom summary box (keeps the item just above it)
       if(yc<=topCut+margin) return; // drop top promo banner
+      var promo=false; // skip "Add/Buy X more to get/enjoy free shipping / a free gift" lines anywhere
+      words.forEach(function(u){
+        var uy=(((u.y0!=null?u.y0:0)+(u.y1!=null?u.y1:0))/2);
+        if(Math.abs(uy-yc)<0.02*H){ var ut=(u.text||"").toLowerCase().replace(/[^a-z]/g,""); if(ut==="more"||ut==="enjoy"||ut==="shipping"||ut==="express"||ut.indexOf("gift")>=0){ promo=true; } }
+      });
+      if(promo) return;
       prices.push({v:v,yc:yc,h:(w.h!=null?w.h:(w.y1-w.y0)),x:(w.x!=null?w.x:0)});
     });
     // strip a stray currency digit glued to the front (dirham glyph misread)
