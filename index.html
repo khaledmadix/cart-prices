@@ -93,7 +93,7 @@
   <div class="top">
     <div class="brand">
       <span class="chip"><svg viewBox="0 0 24 24"><path d="M6 7h12l-1 13a2 2 0 0 1-2 1.8H9A2 2 0 0 1 7 20L6 7Z"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/></svg></span>
-      <h1><span class="gradtext">GlowyGlim</span> <span class="v">v34</span></h1>
+      <h1><span class="gradtext">GlowyGlim</span> <span class="v">v37</span></h1>
     </div>
     <p>Cart &rarr; Price sheet &middot; add screenshots &middot; tap to set prices &middot; one total</p>
   </div>
@@ -152,7 +152,7 @@
   "use strict";
   var $=function(i){return document.getElementById(i);};
   var alive=$("alive");
-  alive.textContent="App is RUNNING (v34) - smart reader";
+  alive.textContent="App is RUNNING (v37) - smart reader";
   alive.className="ok";
 
   var pages=[], seq=0, workerP=null;
@@ -334,7 +334,12 @@
       var qty=1;
       words.forEach(function(w){
         var wy=(((w.y0!=null?w.y0:0)+(w.y1!=null?w.y1:0))/2), wx=(w.x!=null?w.x:0);
-        if(Math.abs(wy-g.yc)<thr && wx>0.70*W){ var mm=(w.text||"").replace(/[^0-9]/g,""); if(/^\d{1,2}$/.test(mm)){ var qn=parseInt(mm,10); if(qn>=1&&qn<=99) qty=qn; } }
+        var raw=(w.text||"").trim();
+        if(raw.indexOf("%")>=0) return;                 // ignore things like "85%" (e.g. "Lower than 85% paid")
+        if(Math.abs(wy-g.yc)<thr*0.7 && wx>0.80*W){     // only the qty box at the far right, tight to the price row
+          var mm=raw.replace(/[^0-9]/g,"");
+          if(/^\d{1,2}$/.test(mm)){ var qn=parseInt(mm,10); if(qn>=1&&qn<=99) qty=qn; }
+        }
       });
       var frac=g.yc/H; var it={orig:chosen.v,qty:qty,override:null,x:p.wrapW*0.78,y:frac*p.wrapH,el:null}; p.items.push(it); draw(p,it);
     });
@@ -373,7 +378,24 @@
   function addPage(f){
     var id=++seq, r=new FileReader();
     r.onerror=function(){showErr("Couldn't read that file. Try another screenshot.");};
-    r.onload=function(){ var p={id:id,data:r.result,items:[],wrapW:0,wrapH:0,font:26}; pages.push(p); build(p); };
+    r.onload=function(){
+      var tmp=new Image();
+      tmp.onload=function(){
+        var nw=tmp.naturalWidth||tmp.width||1, nh=tmp.naturalHeight||tmp.height||1;
+        var MAXW=1000, MAXH=2200, sc=Math.min(1, MAXW/nw, MAXH/nh), data=r.result;
+        if(sc<1){
+          try{
+            var dw=Math.max(1,Math.round(nw*sc)), dh=Math.max(1,Math.round(nh*sc));
+            var cv=document.createElement("canvas"); cv.width=dw; cv.height=dh;
+            cv.getContext("2d").drawImage(tmp,0,0,dw,dh);
+            data=cv.toDataURL("image/jpeg",0.85);
+          }catch(e){ data=r.result; }
+        }
+        var p={id:id,data:data,items:[],wrapW:0,wrapH:0,font:26}; pages.push(p); build(p);
+      };
+      tmp.onerror=function(){ var p={id:id,data:r.result,items:[],wrapW:0,wrapH:0,font:26}; pages.push(p); build(p); };
+      tmp.src=r.result;
+    };
     r.readAsDataURL(f);
   }
 
@@ -432,7 +454,7 @@
   var totVal=0;
   function total(){
     var t=0,n=0;
-    pages.forEach(function(p){ p.items.forEach(function(it){t+=np(it);n++;}); if(p.cntEl)p.cntEl.textContent=p.items.length+" price"+(p.items.length===1?"":"s"); });
+    pages.forEach(function(p){ p.items.forEach(function(it){t+=np(it);n+=(it.qty||1);}); if(p.cntEl)p.cntEl.textContent=p.items.length+" price"+(p.items.length===1?"":"s"); });
     var sub=document.getElementById("totSub"); if(sub) sub.textContent=n+" item"+(n===1?"":"s")+" \u00b7 "+pages.length+" page"+(pages.length===1?"":"s");
     var t0=Date.now(),from=totVal,dur=300;
     (function step(){ var k=Math.min(1,(Date.now()-t0)/dur),e=1-Math.pow(1-k,3); totAmt.textContent=fmt(from+(t-from)*e); if(k<1)requestAnimationFrame(step); else {totVal=t;totAmt.textContent=fmt(t);} })();
@@ -534,7 +556,7 @@
       var stripeH=Math.max(5,Math.round(barH*0.05));
       var sg=c.createLinearGradient(0,0,gridW,0); sg.addColorStop(0,"#ff7a4d"); sg.addColorStop(1,"#ff2e88");
       c.fillStyle=sg; c.fillRect(0,y0,gridW,stripeH);
-      var tt=0,nn=0; pages.forEach(function(p){p.items.forEach(function(it){tt+=np(it);nn++;});});
+      var tt=0,nn=0; pages.forEach(function(p){p.items.forEach(function(it){tt+=np(it);nn+=(it.qty||1);});});
       var padX=Math.round(gridW*0.045), topY=y0+stripeH+Math.round(barH*0.14);
       var rateV=(($("rate")&&$("rate").value)||"16"), stepV=(($("step")&&$("step").value)||"5"), modeV=(($("mode")&&$("mode").value)||"nearest");
       var modeTxt=(modeV==="up"?"up to":"nearest"), dateStr="";
