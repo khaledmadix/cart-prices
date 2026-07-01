@@ -29,6 +29,21 @@
   .totalcard .amtwrap{display:flex;align-items:baseline;gap:5px;z-index:1}
   .totalcard .cur{font-family:var(--disp);font-size:17px;font-weight:700;opacity:.75}
   .pagehead .cnt{background:var(--grad);color:#fff}
+  #ovl{position:fixed;inset:0;background:rgba(20,12,35,.74);z-index:60;display:none;overflow:auto;padding:14px}
+  #ovl.show{display:block}
+  #ovl .sheet{max-width:560px;margin:10px auto;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:0 20px 60px rgba(0,0,0,.45)}
+  #ovl h3{font-family:var(--disp);font-weight:800;font-size:18px;margin:2px 2px 10px;color:var(--ink)}
+  #ovl .imwrap{max-height:50vh;overflow:auto;border-radius:10px;border:1px solid var(--line);background:#fff}
+  #ovl img{width:100%;height:auto;display:block}
+  #ovl .hint{font-size:12px;color:var(--soft);text-align:center;margin:9px 2px 12px}
+  #ovl .btns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  #ovl .btns .full{grid-column:1 / -1}
+  .obtn{height:52px;border:none;border-radius:13px;font:inherit;font-family:var(--disp);font-weight:700;font-size:15px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;color:#fff}
+  .obtn svg{width:19px;height:19px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+  .obtn.share{background:linear-gradient(135deg,#25d366,#12b455)}
+  .obtn.save{background:var(--grad)}
+  .obtn.dl{background:var(--shade);color:var(--ink)}
+  .obtn.close{background:transparent;color:var(--soft);height:44px}
 
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:13px}
   .card h2{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--soft);margin:0 0 11px;font-weight:700}
@@ -78,7 +93,7 @@
   <div class="top">
     <div class="brand">
       <span class="chip"><svg viewBox="0 0 24 24"><path d="M6 7h12l-1 13a2 2 0 0 1-2 1.8H9A2 2 0 0 1 7 20L6 7Z"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/></svg></span>
-      <h1><span class="gradtext">GlowyGlim</span> <span class="v">v22</span></h1>
+      <h1><span class="gradtext">GlowyGlim</span> <span class="v">v23</span></h1>
     </div>
     <p>Cart &rarr; Price sheet &middot; add screenshots &middot; tap to set prices &middot; one total</p>
   </div>
@@ -116,12 +131,26 @@
   <button id="dlBtn" class="act dark" disabled><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>Download to send</button>
 </div></div>
 
+<div id="ovl">
+  <div class="sheet">
+    <h3>Your receipt is ready</h3>
+    <div class="imwrap"><img id="ovlImg" alt="receipt"></div>
+    <div class="hint">Tip: you can also long-press the image to save it to Photos.</div>
+    <div class="btns">
+      <button class="obtn share full" id="ovlShare"><svg viewBox="0 0 24 24"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg>Send / WhatsApp</button>
+      <button class="obtn save" id="ovlSave"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Save to Photos</button>
+      <button class="obtn dl" id="ovlDl"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>Download</button>
+      <button class="obtn close full" id="ovlClose">Close</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function(){
   "use strict";
   var $=function(i){return document.getElementById(i);};
   var alive=$("alive");
-  alive.textContent="App is RUNNING (v22) - smart reader";
+  alive.textContent="App is RUNNING (v23) - smart reader";
   alive.className="ok";
 
   var pages=[], seq=0, workerP=null;
@@ -326,29 +355,34 @@
   window.addEventListener("resize",function(){pages.forEach(function(p){if(p.img&&p.img.complete)measure(p);});});
 
   function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
-  function ggSave(cv){
-    function viaDataURL(){
-      try{ var u=cv.toDataURL("image/jpeg",0.9); var a=document.createElement("a"); a.href=u; a.download="glowyglim-receipt.jpg"; document.body.appendChild(a); a.click(); a.remove(); }
-      catch(e){ alert("Couldn't save on this phone with that many pages. Try splitting into two receipts with fewer screenshots each."); }
-    }
-    function blobDownload(blob){
-      try{
-        var url=URL.createObjectURL(blob);
-        var a=document.createElement("a"); a.href=url; a.download="glowyglim-receipt.jpg";
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(function(){ try{URL.revokeObjectURL(url);}catch(e){} },6000);
-      }catch(e){ viaDataURL(); }
-    }
-    if(!cv.toBlob){ viaDataURL(); return; }
-    cv.toBlob(function(blob){
-      if(!blob){ viaDataURL(); return; }
-      var file=null; try{ file=new File([blob],"glowyglim-receipt.jpg",{type:"image/jpeg"}); }catch(e){}
-      if(file && navigator.canShare && navigator.canShare({files:[file]})){
-        navigator.share({files:[file],title:"GlowyGlim",text:"GlowyGlim price sheet"})
-          .catch(function(err){ if(err&&err.name==="AbortError")return; blobDownload(blob); });
-      } else { blobDownload(blob); }
-    }, "image/jpeg", 0.92);
+  var ovl=$("ovl"),ovlImg=$("ovlImg"),lastBlob=null,lastFile=null,lastURL=null;
+  function safeDataURL(cv){ try{return cv.toDataURL("image/jpeg",0.9);}catch(e){ try{return cv.toDataURL("image/png");}catch(e2){return "";} } }
+  function present(blob,dataURL){
+    if(lastURL){try{URL.revokeObjectURL(lastURL);}catch(e){} lastURL=null;}
+    lastBlob=blob||null; lastFile=null;
+    if(blob){ try{lastFile=new File([blob],"glowyglim-receipt.jpg",{type:"image/jpeg"});}catch(e){} lastURL=URL.createObjectURL(blob); ovlImg.src=lastURL; }
+    else { ovlImg.src=dataURL||""; }
+    ovl.classList.add("show");
   }
+  function showResult(cv){
+    var started=false;
+    if(cv.toBlob){ try{ cv.toBlob(function(blob){ if(blob)present(blob); else present(null,safeDataURL(cv)); }, "image/jpeg", 0.92); started=true; }catch(e){} }
+    if(!started){ present(null,safeDataURL(cv)); }
+  }
+  function ggDownload(){
+    try{ var url=lastURL||(lastBlob?URL.createObjectURL(lastBlob):ovlImg.src);
+      var a=document.createElement("a"); a.href=url; a.download="glowyglim-receipt.jpg"; document.body.appendChild(a); a.click(); a.remove();
+    }catch(e){ alert("If it did not save, long-press the receipt image to Save to Photos."); }
+  }
+  function ggShare(){
+    if(lastFile && navigator.canShare && navigator.canShare({files:[lastFile]})){
+      navigator.share({files:[lastFile],title:"GlowyGlim",text:"GlowyGlim price sheet"}).catch(function(err){ if(err&&err.name==="AbortError")return; ggDownload(); });
+    } else { ggDownload(); }
+  }
+  if($("ovlShare"))$("ovlShare").onclick=ggShare;
+  if($("ovlSave"))$("ovlSave").onclick=ggShare;
+  if($("ovlDl"))$("ovlDl").onclick=ggDownload;
+  if($("ovlClose"))$("ovlClose").onclick=function(){ ovl.classList.remove("show"); };
   dlBtn.onclick=function(){
     if(!pages.length)return;
     try{
@@ -360,16 +394,16 @@
       function pageH(p){var iw=p.img.naturalWidth||p.wrapW,ih=p.img.naturalHeight||p.wrapH;return Math.round(ih*(baseCW/iw));}
       var rowH=[]; for(var r=0;r<rows;r++){var mh=0;for(var ci=0;ci<cols;ci++){var idx=r*cols+ci;if(idx<N)mh=Math.max(mh,pageH(pages[idx]));}rowH.push(mh);}
       var gridW=cols*baseCW+(cols+1)*gap;
-      var headerH=Math.round(baseCW*0.46), barH=Math.round(baseCW*0.22), footerH=Math.round(baseCW*0.17);
+      var headerH=Math.round(baseCW*0.46), barH=Math.round(baseCW*0.30), footerH=Math.round(baseCW*0.17);
       var gridH=rowH.reduce(function(a,b){return a+b;},0)+(rows+1)*gap;
       var totalW=gridW, totalH=headerH+gridH+barH+footerH;
       // fit within a phone-safe canvas budget so it never fails or pixelates
-      var MAXDIM=4096, MAXAREA=13000000;
+      var MAXDIM=4096, MAXAREA=(N>16?9000000:(N>12?11000000:13000000));
       var GS=Math.min(1, MAXDIM/Math.max(totalW,totalH), Math.sqrt(MAXAREA/(totalW*totalH)));
       var cv=document.createElement("canvas");
       cv.width=Math.max(1,Math.round(totalW*GS)); cv.height=Math.max(1,Math.round(totalH*GS));
       var c=cv.getContext("2d"); c.scale(GS,GS);
-      c.fillStyle="#f5f1ea"; c.fillRect(0,0,totalW,totalH);
+      c.fillStyle="#e6ded0"; c.fillRect(0,0,totalW,totalH);
       // header brand
       var bg=c.createLinearGradient(0,0,totalW,0); bg.addColorStop(0,"#ff7a4d"); bg.addColorStop(1,"#ff2e88");
       c.textBaseline="middle"; c.textAlign="center";
@@ -387,7 +421,7 @@
           var x=startX+ci*(baseCW+gap), y=rowY, dh=pageH(p);
           c.fillStyle="#fff"; c.fillRect(x-3,y-3,baseCW+6,dh+6);
           c.drawImage(p.img,x,y,baseCW,dh);
-          c.strokeStyle="#e3ddd2"; c.lineWidth=2; c.strokeRect(x,y,baseCW,dh);
+          c.strokeStyle="#d3c9b6"; c.lineWidth=2; c.strokeRect(x,y,baseCW,dh);
           var ds=baseCW/(p.wrapW||baseCW);
           p.items.forEach(function(it){
             var lx=x+it.x*ds, ly=y+it.y*ds, txt=fmt(np(it)), fs=Math.round((p.font||34)*ds);
@@ -398,26 +432,36 @@
         }
         rowY+=rowH[r]+gap;
       }
-      // total bar (full width)
+      // total banner (full width, detailed)
       var y0=headerH+gridH;
       c.fillStyle="#1c1b1a"; c.fillRect(0,y0,gridW,barH);
-      var stripeH=Math.max(4,Math.round(barH*0.07));
-      c.fillStyle="#ff5a2d"; c.fillRect(0,y0,gridW,stripeH);
-      var midY=y0+stripeH+(barH-stripeH)/2;
+      var stripeH=Math.max(5,Math.round(barH*0.05));
+      var sg=c.createLinearGradient(0,0,gridW,0); sg.addColorStop(0,"#ff7a4d"); sg.addColorStop(1,"#ff2e88");
+      c.fillStyle=sg; c.fillRect(0,y0,gridW,stripeH);
       var tt=0,nn=0; pages.forEach(function(p){p.items.forEach(function(it){tt+=np(it);nn++;});});
-      c.textBaseline="middle";
-      c.textAlign="left"; c.fillStyle="#f1ede6"; c.font="700 "+Math.round(barH*0.26)+"px sans-serif";
-      c.fillText(($("totLbl").textContent||"Total").toUpperCase(), Math.round(gridW*0.04), midY-Math.round(barH*0.13));
-      c.fillStyle="#9a948d"; c.font=Math.round(barH*0.16)+"px sans-serif";
-      c.fillText(nn+" item"+(nn===1?"":"s"), Math.round(gridW*0.04), midY+Math.round(barH*0.20));
-      c.textAlign="right"; c.fillStyle="#fff"; c.font="800 "+Math.round(barH*0.46)+"px sans-serif";
-      c.fillText(fmt(tt)+" EGP", gridW-Math.round(gridW*0.04), midY);
+      var padX=Math.round(gridW*0.045), topY=y0+stripeH+Math.round(barH*0.14);
+      var rateV=(($("rate")&&$("rate").value)||"16"), stepV=(($("step")&&$("step").value)||"5"), modeV=(($("mode")&&$("mode").value)||"nearest");
+      var modeTxt=(modeV==="up"?"up to":"nearest"), dateStr="";
+      try{ dateStr=new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}); }catch(e){ dateStr=""; }
+      c.textAlign="left"; c.textBaseline="alphabetic";
+      c.fillStyle="#ffffff"; c.font="800 "+Math.round(barH*0.19)+"px sans-serif";
+      c.fillText("TOTAL", padX, topY+Math.round(barH*0.17));
+      c.fillStyle="#cfc9c2"; c.font="600 "+Math.round(barH*0.100)+"px sans-serif";
+      c.fillText(nn+" item"+(nn===1?"":"s")+"   \u00b7   "+N+" page"+(N===1?"":"s"), padX, topY+Math.round(barH*0.34));
+      if(dateStr){ c.fillText(dateStr, padX, topY+Math.round(barH*0.48)); }
+      c.fillStyle="#8f8981"; c.font="600 "+Math.round(barH*0.088)+"px sans-serif";
+      c.fillText("Rate \u00d7"+rateV+"   \u00b7   "+modeTxt+" "+stepV, padX, topY+Math.round(barH*0.61));
+      c.textAlign="right";
+      c.fillStyle="#b7b1a9"; c.font="700 "+Math.round(barH*0.10)+"px sans-serif";
+      c.fillText("GlowyGlim", gridW-padX, y0+Math.round(barH*0.30));
+      c.fillStyle="#ffffff"; c.font="800 "+Math.round(barH*0.33)+"px sans-serif";
+      c.fillText(fmt(tt)+" EGP", gridW-padX, y0+Math.round(barH*0.72));
       // footer
-      c.textAlign="center"; c.textBaseline="middle"; c.fillStyle="#9a948d";
-      c.font="600 "+Math.round(footerH*0.32)+"px sans-serif";
+      c.textAlign="center"; c.textBaseline="middle"; c.fillStyle="#7f7a72";
+      c.font="600 "+Math.round(footerH*0.30)+"px sans-serif";
       c.fillText("Thank you for shopping with GlowyGlim", totalW/2, y0+barH+footerH*0.5);
       // export as JPEG (reliable on phones), fall back to PNG
-      ggSave(cv);
+      showResult(cv);
     }catch(err){ alert("Could not build the image ("+((err&&err.message)||err)+"). Try a few less screenshots, or let me know."); }
   };
 })();
