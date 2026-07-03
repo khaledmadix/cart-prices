@@ -93,7 +93,7 @@
   <div class="top">
     <div class="brand">
       <span class="chip"><svg viewBox="0 0 24 24"><path d="M6 7h12l-1 13a2 2 0 0 1-2 1.8H9A2 2 0 0 1 7 20L6 7Z"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/></svg></span>
-      <h1><span class="gradtext">GlowyGlim</span> <span class="v">v41</span></h1>
+      <h1><span class="gradtext">GlowyGlim</span> <span class="v">v42</span></h1>
     </div>
     <p>Cart &rarr; Price sheet &middot; add screenshots &middot; tap to set prices &middot; one total</p>
   </div>
@@ -152,7 +152,7 @@
   "use strict";
   var $=function(i){return document.getElementById(i);};
   var alive=$("alive");
-  alive.textContent="App is RUNNING (v41) - smart reader";
+  alive.textContent="App is RUNNING (v42) - smart reader";
   alive.className="ok";
 
   var pages=[], seq=0, workerP=null;
@@ -246,16 +246,22 @@
   function processWords(p,words,H,W){
     W=W||1200;
     // find the bottom summary box and the top promo banner, and ignore both
-    var cutY=Infinity, topCut=-Infinity, margin=0.02*H;
+    var couponCutY=Infinity, plainCutY=Infinity, topCut=-Infinity, margin=0.02*H;
     words.forEach(function(w){
       var t=(w.text||"").toLowerCase().replace(/[^a-z]/g,"");
-      var wy0=(w.y0!=null?w.y0:0), wy1=(w.y1!=null?w.y1:wy0);
-      // bottom summary markers -- only counted in the lower part of the image, and NOT "coupon"
-      if(wy0>0.45*H && (t.indexOf("checkout")>=0||t.indexOf("subtotal")>=0||t==="total"||t==="saved"||t==="savedwith"||t==="grandtotal"||t==="ordertotal")){
-        if(wy0<cutY) cutY=wy0;
-      }
+      var wy0=(w.y0!=null?w.y0:0), wy1=(w.y1!=null?w.y1:wy0), wyc=(wy0+wy1)/2;
       // top promo banner e.g. "Add X more to get a FREE GIFT" -- only in the top strip
       if(t.indexOf("gift")>=0 && wy0<0.25*H){ if(wy1>topCut) topCut=wy1; }
+      // bottom summary markers, lower part only
+      if(wy0>0.45*H && (t.indexOf("checkout")>=0||t.indexOf("subtotal")>=0||t==="total"||t==="saved"||t==="savedwith"||t==="grandtotal"||t==="ordertotal")){
+        // is this row a coupon-savings banner ("X saved with Y% OFF coupon. Checkout now!")?
+        var couponRow=false;
+        words.forEach(function(u){
+          var uyc=(((u.y0!=null?u.y0:0)+(u.y1!=null?u.y1:0))/2);
+          if(Math.abs(uyc-wyc)<0.025*H){ var ux=(u.text||""), ul=ux.toLowerCase().replace(/[^a-z]/g,""); if(ux.indexOf("%")>=0||ul==="off"||ul==="with"||ul.indexOf("coupon")>=0) couponRow=true; }
+        });
+        if(couponRow){ if(wy0<couponCutY) couponCutY=wy0; } else { if(wy0<plainCutY) plainCutY=wy0; }
+      }
     });
     // some readers split a price like "9.26" into "9" + ".26"; stitch those back together
     var extra=[], usedw={};
@@ -278,7 +284,8 @@
     allw.forEach(function(w){
       var v=parsePrice(w.text); if(v==null) return;
       var yc=(w.y0+w.y1)/2;
-      if(yc>=cutY-0.055*H) return;   // drop the bottom summary box AND the total line sitting just above the Saved/Checkout words
+      if(yc>=couponCutY) return;                                 // coupon savings banner + everything below it (keeps the item above it)
+      if(couponCutY===Infinity && yc>=plainCutY-0.055*H) return;  // plain checkout bar + the total sitting just above it
       if(yc<=topCut+margin) return; // drop top promo banner
       var promo=false; // skip "Add/Buy X more to get/enjoy free shipping / a free gift" lines anywhere
       words.forEach(function(u){
